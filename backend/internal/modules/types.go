@@ -1,4 +1,4 @@
-package internal
+package modules
 
 import (
 	"time"
@@ -10,6 +10,11 @@ type ModulePage struct {
 	Module Module
 	Run    ModuleRun
 	Weeks  []Week
+}
+
+type ModuleRunPage struct {
+	Run   ModuleRun
+	Weeks []Week
 }
 
 type Module struct {
@@ -37,4 +42,13 @@ type Week struct {
 	ModuleRunID uuid.UUID
 	Number      int
 	Topic       string
+}
+
+type AcademicTerm struct {
+	ID       uuid.UUID
+	Year     int
+	Semester string
+	StartAt  time.Time
+	EndsAt   time.Time
+	IsActive bool
 }
