@@ -96,7 +96,6 @@ func (s *ModuleService) CreateModule(ctx context.Context, module Module) error {
 		ModuleID:  module.ID,
 		Year:      term.Year,
 		Semester:  term.Semester,
-		Weeks:     14,
 		IsActive:  true,
 		CreatedAt: time.Now(),
 	}

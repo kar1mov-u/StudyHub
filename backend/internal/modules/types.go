@@ -21,7 +21,6 @@ type Module struct {
 	ID             uuid.UUID
 	Code           string
 	Name           string
-	Description    string
 	DepartmentName string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -32,7 +31,6 @@ type ModuleRun struct {
 	ModuleID  uuid.UUID
 	Year      int
 	Semester  string
-	Weeks     int
 	IsActive  bool
 	CreatedAt time.Time
 }
