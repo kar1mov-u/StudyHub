@@ -21,8 +21,14 @@ CREATE TABLE IF NOT EXISTS weeks (
     id UUID PRIMARY KEY, 
     module_run_id UUID NOT NULL REFERENCES module_runs(id) ON DELETE CASCADE,
     number INT NOT NULL,
-    topic TEXT NOT NULL,
 );
+
+CREATE TABLE IF NOT EXISTS academic_terms (
+    id UUID PRIMARY KEY, 
+    year INT NOT NULL, 
+    semester TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL
+)
 
 CREATE INDEX idx_module_runs_module_id
 ON module_runs(module_id);

@@ -19,7 +19,7 @@ type ModuleRunRepository interface {
 	Create(context.Context, ModuleRun) error
 	GetActiveByModuleID(context.Context, uuid.UUID) (ModuleRun, error)
 	ListByModuleID(context.Context, uuid.UUID) ([]ModuleRun, error)
-	DeactivateByModulID(context.Context, uuid.UUID) error
+	DeactivateByModuleID(context.Context, uuid.UUID) error
 	Delete(context.Context, uuid.UUID) error
 }
 
@@ -30,6 +30,9 @@ type WeekRepository interface {
 
 type AcademicCalendarRepository interface {
 	GetActive(context.Context) (AcademicTerm, error)
+	Create(context.Context, AcademicTerm) error
+	List(context.Context) ([]AcademicTerm, error)
+	DeActivate(context.Context, uuid.UUID) error
 }
 
 type ModuleService struct {

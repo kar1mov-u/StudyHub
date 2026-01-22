@@ -39,14 +39,11 @@ type Week struct {
 	ID          uuid.UUID
 	ModuleRunID uuid.UUID
 	Number      int
-	Topic       string
 }
 
 type AcademicTerm struct {
 	ID       uuid.UUID
 	Year     int
 	Semester string
-	StartAt  time.Time
-	EndsAt   time.Time
 	IsActive bool
 }
