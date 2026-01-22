@@ -3,6 +3,8 @@ package http
 import (
 	"StudyHub/backend/internal/modules"
 	"context"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -30,8 +32,19 @@ func NewHTTPServer(moduleSrv *modules.ModuleService, port string) *HTTPServer {
 
 func (srv *HTTPServer) registerRoutes() {
 	srv.router.Route("/api/v1", func(r chi.Router) {
+		// Module routes
+		r.Get("/modules", srv.ListModulesHandler)
+		r.Post("/modules", srv.CreateModuleHandler)
+		r.Get("/modules/{id}", srv.GetModuleFullHandler)
+		r.Delete("/modules/{id}", srv.DeleteModuleHandler)
 
-		// r.Get("/modules", )
+		// Module Run routes (nested under modules)
+		r.Get("/modules/{moduleID}/runs", srv.ListModuleRunsHandler)
+		r.Post("/modules/{moduleID}/runs", srv.CreateModuleRunHandler)
+
+		// Module Run routes (direct access)
+		r.Get("/module-runs/{id}", srv.GetModuleRunHandler)
+		r.Delete("/module-runs/{id}", srv.DeleteModuleRunHandler)
 	})
 }
 
@@ -41,4 +54,37 @@ func (srv *HTTPServer) Start() {
 
 func (srv *HTTPServer) ShutDown(ctx context.Context) error {
 	return srv.httpServer.Shutdown(ctx)
+}
+
+type Response struct {
+	Data any `json:"data"`
+}
+
+type ErrResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func ResponseWithJSON(w http.ResponseWriter, statusCode int, payload any) {
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(statusCode)
+	resp := Response{Data: payload}
+	err := json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, "cannot decode JSON response", http.StatusInternalServerError)
+		slog.Error("cannot encode JSON response: %s", err.Error(), err)
+		return
+	}
+}
+
+func ResponseWithErr(w http.ResponseWriter, statusCode int, message string) {
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(statusCode)
+
+	err := json.NewEncoder(w).Encode(map[string]ErrResponse{"error": {Code: statusCode, Message: message}})
+	if err != nil {
+		http.Error(w, "cannot decode JSON response", http.StatusInternalServerError)
+		slog.Error("cannot encode JSON response: %s", err.Error(), err)
+		return
+	}
 }

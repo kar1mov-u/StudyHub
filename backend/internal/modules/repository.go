@@ -39,7 +39,7 @@ func (r *ModuleRepositoryPostgres) GetByID(ctx context.Context, id uuid.UUID) (M
 func (r *ModuleRepositoryPostgres) List(ctx context.Context) ([]Module, error) {
 	modules := make([]Module, 0)
 	query := `SELECT id, code, name, department_name FROM modules`
-	rows, err := r.pool.Query(ctx, query, nil)
+	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return []Module{}, fmt.Errorf("ListModules query err: %w", err)
 	}

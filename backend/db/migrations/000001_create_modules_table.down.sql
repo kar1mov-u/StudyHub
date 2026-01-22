@@ -1,4 +1,4 @@
-DROP TABLE weeks;
-DROP TABLE module_runs;
-DROP TABLE modules;
-DROP TABLE academic_terms;
+DROP TABLE IF EXISTS weeks;
+DROP TABLE IF EXISTS module_runs;
+DROP TABLE IF EXISTS modules;
+DROP TABLE IF EXISTS academic_terms;

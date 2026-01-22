@@ -42,11 +42,12 @@ type ModuleService struct {
 	calendarRepo  AcademicCalendarRepository
 }
 
-func NewModuleService(moduleRepo ModuleRepository, weekRepo WeekRepository, moduleRunRepo ModuleRunRepository) *ModuleService {
+func NewModuleService(moduleRepo ModuleRepository, weekRepo WeekRepository, moduleRunRepo ModuleRunRepository, calendarRepo AcademicCalendarRepository) *ModuleService {
 	return &ModuleService{
 		moduleRepo:    moduleRepo,
 		moduleRunRepo: moduleRunRepo,
 		weekRepo:      weekRepo,
+		calendarRepo:  calendarRepo,
 	}
 }
 
@@ -83,7 +84,7 @@ func (s *ModuleService) GetModuleFull(ctx context.Context, id uuid.UUID) (Module
 // when the new module is created, we will automatically create the newModuleRun also
 func (s *ModuleService) CreateModule(ctx context.Context, module Module) error {
 	//create the module
-	if err := s.CreateModule(ctx, module); err != nil {
+	if err := s.moduleRepo.Create(ctx, module); err != nil {
 		return err
 	}
 
