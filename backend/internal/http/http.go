@@ -45,6 +45,13 @@ func (srv *HTTPServer) registerRoutes() {
 		// Module Run routes (direct access)
 		r.Get("/module-runs/{id}", srv.GetModuleRunHandler)
 		r.Delete("/module-runs/{id}", srv.DeleteModuleRunHandler)
+
+		// Academic Calendar routes
+		r.Get("/academic-terms", srv.ListAcademicTermsHandler)
+		r.Get("/academic-terms/active", srv.GetActiveAcademicTermHandler)
+		r.Post("/academic-terms", srv.CreateAcademicTermHandler)
+		r.Patch("/academic-terms/{id}/deactivate", srv.DeactivateAcademicTermHandler)
+		r.Patch("/academic-terms/{id}/activate", srv.ActivateAcademicTermHandler)
 	})
 }
 

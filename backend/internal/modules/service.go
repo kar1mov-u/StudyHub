@@ -26,6 +26,7 @@ type ModuleRunRepository interface {
 type WeekRepository interface {
 	GetByID(context.Context, uuid.UUID) (Week, error)
 	ListByModuleRun(context.Context, uuid.UUID) ([]Week, error)
+	CreateWeeksForMoudleRun(context.Context, uuid.UUID) error
 }
 
 type AcademicCalendarRepository interface {
@@ -33,6 +34,7 @@ type AcademicCalendarRepository interface {
 	Create(context.Context, AcademicTerm) error
 	List(context.Context) ([]AcademicTerm, error)
 	DeActivate(context.Context, uuid.UUID) error
+	Activate(context.Context, uuid.UUID) error
 }
 
 type ModuleService struct {
@@ -83,14 +85,15 @@ func (s *ModuleService) GetModuleFull(ctx context.Context, id uuid.UUID) (Module
 
 // when the new module is created, we will automatically create the newModuleRun also
 func (s *ModuleService) CreateModule(ctx context.Context, module Module) error {
-	//create the module
-	if err := s.moduleRepo.Create(ctx, module); err != nil {
-		return err
-	}
 
 	//get current semester
 	term, err := s.calendarRepo.GetActive(ctx)
 	if err != nil {
+		return err
+	}
+
+	//create the module
+	if err := s.moduleRepo.Create(ctx, module); err != nil {
 		return err
 	}
 
@@ -104,7 +107,12 @@ func (s *ModuleService) CreateModule(ctx context.Context, module Module) error {
 		CreatedAt: time.Now(),
 	}
 
-	return s.moduleRunRepo.Create(ctx, moduleRun)
+	err = s.moduleRunRepo.Create(ctx, moduleRun)
+	if err != nil {
+		return err
+	}
+
+	return s.weekRepo.CreateWeeksForMoudleRun(ctx, moduleRun.ID)
 
 }
 
@@ -139,4 +147,26 @@ func (s *ModuleService) GetModuleRun(ctx context.Context, id uuid.UUID) (ModuleR
 
 func (s *ModuleService) DeleteModuleRun(ctx context.Context, id uuid.UUID) error {
 	return s.moduleRunRepo.Delete(ctx, id)
+}
+
+// Academic Calendar methods
+
+func (s *ModuleService) GetActiveAcademicTerm(ctx context.Context) (AcademicTerm, error) {
+	return s.calendarRepo.GetActive(ctx)
+}
+
+func (s *ModuleService) ListAcademicTerms(ctx context.Context) ([]AcademicTerm, error) {
+	return s.calendarRepo.List(ctx)
+}
+
+func (s *ModuleService) CreateAcademicTerm(ctx context.Context, term AcademicTerm) error {
+	return s.calendarRepo.Create(ctx, term)
+}
+
+func (s *ModuleService) DeactivateAcademicTerm(ctx context.Context, id uuid.UUID) error {
+	return s.calendarRepo.DeActivate(ctx, id)
+}
+
+func (s *ModuleService) ActivateAcademicTerm(ctx context.Context, id uuid.UUID) error {
+	return s.calendarRepo.Activate(ctx, id)
 }

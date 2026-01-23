@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -188,6 +189,21 @@ func (r *WeekRepositoryPostgres) ListByModuleRun(ctx context.Context, id uuid.UU
 	return weeks, err
 }
 
+func (r *WeekRepositoryPostgres) CreateWeeksForMoudleRun(ctx context.Context, moduleRunID uuid.UUID) error {
+	batch := pgx.Batch{}
+	query := `INSERT INTO weeks(module_run_id, id, number) VALUES ($1, $2, $3)`
+	for i := 1; i <= 15; i++ {
+		batch.Queue(query, moduleRunID, uuid.New(), i)
+	}
+
+	err := r.pool.SendBatch(ctx, &batch).Close()
+	if err != nil {
+		return fmt.Errorf("CreateWeeks batch err: %w", err)
+	}
+
+	return nil
+}
+
 type AcademicCalendarRepositoryPostgres struct {
 	pool *pgxpool.Pool
 }
@@ -243,6 +259,15 @@ func (r *AcademicCalendarRepositoryPostgres) DeActivate(ctx context.Context, id 
 	_, err := r.pool.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("DeactivateAcademicTerm err: %w", err)
+	}
+	return nil
+}
+
+func (r *AcademicCalendarRepositoryPostgres) Activate(ctx context.Context, id uuid.UUID) error {
+	query := `UPDATE academic_terms SET is_active=true WHERE id=$1`
+	_, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("ActivateAcademicTerm err: %w", err)
 	}
 	return nil
 }
