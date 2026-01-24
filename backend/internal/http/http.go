@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/go-chi/cors"
+
 	"github.com/go-chi/chi"
 )
 
@@ -31,6 +33,15 @@ func NewHTTPServer(moduleSrv *modules.ModuleService, port string) *HTTPServer {
 }
 
 func (srv *HTTPServer) registerRoutes() {
+
+	srv.router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000", "http://0.0.0.0:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // maximum age for preflight request cache
+	}))
 	srv.router.Route("/api/v1", func(r chi.Router) {
 		// Module routes
 		r.Get("/modules", srv.ListModulesHandler)
