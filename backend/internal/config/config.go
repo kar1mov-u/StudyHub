@@ -13,6 +13,7 @@ type Config struct {
 	DBUser string `env:"DB_USER"`
 	DBPass string `env:"DB_PASS"`
 	DBName string `env:"DB_NAME"`
+	JwtKey string `env:"JWT_KEY"`
 }
 
 func Load() Config {

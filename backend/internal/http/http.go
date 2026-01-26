@@ -1,12 +1,15 @@
 package http
 
 import (
+	"StudyHub/backend/internal/auth"
 	"StudyHub/backend/internal/modules"
+	"StudyHub/backend/internal/users"
 	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 
 	"github.com/go-chi/chi"
@@ -14,14 +17,18 @@ import (
 
 type HTTPServer struct {
 	moduleSrv  *modules.ModuleService
+	authSrv    *auth.AuthService
+	userSrv    *users.UserService
 	httpServer *http.Server
 	router     *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
 		moduleSrv: moduleSrv,
+		userSrv:   userSrv,
+		authSrv:   authSrv,
 		router:    router,
 		httpServer: &http.Server{
 			Addr:    port,
@@ -43,27 +50,44 @@ func (srv *HTTPServer) registerRoutes() {
 		MaxAge:           300, // maximum age for preflight request cache
 	}))
 	srv.router.Route("/api/v1", func(r chi.Router) {
-		// Module routes
-		r.Get("/modules", srv.ListModulesHandler)
-		r.Post("/modules", srv.CreateModuleHandler)
-		r.Get("/modules/{id}", srv.GetModuleFullHandler)
-		r.Delete("/modules/{id}", srv.DeleteModuleHandler)
+		r.Use(middleware.Logger)
+		//auth routes
+		r.Group(func(pub chi.Router) {
+			pub.Post("/auth/login", srv.LoginHandler)
+			pub.Post("/users", srv.CreateUserHandler)
 
-		// Module Run routes (nested under modules)
-		r.Get("/modules/{moduleID}/runs", srv.ListModuleRunsHandler)
-		r.Post("/modules/{moduleID}/runs", srv.CreateModuleRunHandler)
+		})
 
-		// Module Run routes (direct access)
-		r.Get("/module-runs/{id}", srv.GetModuleRunHandler)
-		r.Delete("/module-runs/{id}", srv.DeleteModuleRunHandler)
+		//User routes
+		r.Group(func(priv chi.Router) {
+			priv.Use(srv.authSrv.JWTMiddleware)
 
-		// Academic Calendar routes
-		r.Get("/academic-terms", srv.ListAcademicTermsHandler)
-		r.Get("/academic-terms/active", srv.GetActiveAcademicTermHandler)
-		r.Post("/academic-terms", srv.CreateAcademicTermHandler)
-		r.Patch("/academic-terms/{id}/deactivate", srv.DeactivateAcademicTermHandler)
-		r.Patch("/academic-terms/{id}/activate", srv.ActivateAcademicTermHandler)
+			priv.Get("/users", srv.ListUsersHandler)
+			priv.Get("/users/{id}", srv.GetUserHandler)
+			priv.Delete("/users/{id}", srv.DeleteUserHandler)
+			// Module routes
+			priv.Get("/modules", srv.ListModulesHandler)
+			priv.Post("/modules", srv.CreateModuleHandler)
+			priv.Get("/modules/{id}", srv.GetModuleFullHandler)
+			priv.Delete("/modules/{id}", srv.DeleteModuleHandler)
+
+			// Module Run routes (nested under modules)
+			priv.Get("/modules/{moduleID}/runs", srv.ListModuleRunsHandler)
+			priv.Post("/modules/{moduleID}/runs", srv.CreateModuleRunHandler)
+
+			// Module Run routes (direct access)
+			priv.Get("/module-runs/{id}", srv.GetModuleRunHandler)
+			priv.Delete("/module-runs/{id}", srv.DeleteModuleRunHandler)
+
+			// Academic Calendar routes
+			priv.Get("/academic-terms", srv.ListAcademicTermsHandler)
+			priv.Get("/academic-terms/active", srv.GetActiveAcademicTermHandler)
+			priv.Post("/academic-terms", srv.CreateAcademicTermHandler)
+			priv.Patch("/academic-terms/{id}/deactivate", srv.DeactivateAcademicTermHandler)
+			priv.Patch("/academic-terms/{id}/activate", srv.ActivateAcademicTermHandler)
+		})
 	})
+
 }
 
 func (srv *HTTPServer) Start() {

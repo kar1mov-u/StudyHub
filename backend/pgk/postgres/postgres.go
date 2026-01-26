@@ -11,7 +11,7 @@ import (
 
 // should accept Config.Postgres and based on this connect to the database
 
-// connection string-postgresql://postgres:postgres@localhost:5431/campusfit?sslmode=disable
+// connection string-postgresql://postgres:postgres@localhost:5432/studyhub?sslmode=disable
 func New(ctx context.Context, connString string) *pgxpool.Pool {
 	pool, err := pgxpool.New(ctx, connString)
 	if err != nil {
