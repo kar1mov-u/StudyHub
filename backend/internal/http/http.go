@@ -3,6 +3,7 @@ package http
 import (
 	"StudyHub/backend/internal/auth"
 	"StudyHub/backend/internal/modules"
+	"StudyHub/backend/internal/resources"
 	"StudyHub/backend/internal/users"
 	"context"
 	"encoding/json"
@@ -16,11 +17,12 @@ import (
 )
 
 type HTTPServer struct {
-	moduleSrv  *modules.ModuleService
-	authSrv    *auth.AuthService
-	userSrv    *users.UserService
-	httpServer *http.Server
-	router     *chi.Mux
+	moduleSrv   *modules.ModuleService
+	authSrv     *auth.AuthService
+	userSrv     *users.UserService
+	resourceSrv *resources.ResourceService
+	httpServer  *http.Server
+	router      *chi.Mux
 }
 
 func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, port string) *HTTPServer {
@@ -60,7 +62,7 @@ func (srv *HTTPServer) registerRoutes() {
 
 		//User routes
 		r.Group(func(priv chi.Router) {
-			priv.Use(srv.authSrv.JWTMiddleware)
+			// priv.Use(srv.authSrv.JWTMiddleware)
 
 			priv.Get("/users", srv.ListUsersHandler)
 			priv.Get("/users/{id}", srv.GetUserHandler)

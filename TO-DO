@@ -1,3 +1,2 @@
-When a new module is created-> new moduleRun should be created for it -> Create 14 weeks for that module run  -- DOONE
-Admin should be able to see the academic terms
-
+When a user uploads a file we have to send it to S3 and create the hash. If hash is already in our system, no need to send to S3.
+Problem: when recieving file, it will be the form of io.Reader(stream). If we want to first check hash, then upload. we cant work with the stream 
