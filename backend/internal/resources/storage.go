@@ -9,7 +9,7 @@ import (
 )
 
 type FileStorage interface {
-	UploadFile(ctx context.Context, filename string, body io.Reader)
+	UploadFile(ctx context.Context, filename string, body io.Reader) error
 }
 
 type S3Storage struct {

@@ -29,6 +29,11 @@ func parseUUID(w http.ResponseWriter, param string) (uuid.UUID, bool) {
 	return id, true
 }
 
+func getUserID(r *http.Request) string {
+	id := r.Context().Value("userID").(string)
+	return id
+}
+
 func isNotFoundError(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows)
 }
