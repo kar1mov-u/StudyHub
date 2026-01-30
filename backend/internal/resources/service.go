@@ -76,7 +76,6 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 		}
 	}
 
-	//
 	err = s.resourceRepo.CreateUserResource(ctx, resource)
 	if err != nil {
 		return err
