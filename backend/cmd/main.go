@@ -5,6 +5,7 @@ import (
 	"StudyHub/backend/internal/config"
 	"StudyHub/backend/internal/http"
 	"StudyHub/backend/internal/modules"
+	"StudyHub/backend/internal/resources"
 	"StudyHub/backend/internal/users"
 	"StudyHub/backend/pgk/postgres"
 	"context"
@@ -28,13 +29,17 @@ func main() {
 	weeksRepo := modules.NewWeekRepositoryPostgres(pool)
 	academicCalRepo := modules.NewAcademicCalendarRepositoryPostgres(pool)
 	userRepo := users.NewUserRepositoryPostgres(pool)
+	resourceRepo := resources.NewResourceRepositoryPostgres(pool)
+
+	s3Storage := resources.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
 
 	//createing srvs
 	moduleSrv := modules.NewModuleService(moduleRepo, weeksRepo, moduleRunRepo, academicCalRepo)
 	userSrv := users.NewUserService(userRepo)
 	authSrv := auth.NewAuthSerivce("", userRepo)
+	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage)
 
-	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, ":8080")
+	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, ":8080")
 
 	log.Println("listening...")
 	httpServer.Start()

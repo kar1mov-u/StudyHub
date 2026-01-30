@@ -8,12 +8,14 @@ import (
 )
 
 type Config struct {
-	DBHost string `env:"DB_HOST"`
-	DBPort string `env:"DB_PORT"`
-	DBUser string `env:"DB_USER"`
-	DBPass string `env:"DB_PASS"`
-	DBName string `env:"DB_NAME"`
-	JwtKey string `env:"JWT_KEY"`
+	DBHost     string `env:"DB_HOST"`
+	DBPort     string `env:"DB_PORT"`
+	DBUser     string `env:"DB_USER"`
+	DBPass     string `env:"DB_PASS"`
+	DBName     string `env:"DB_NAME"`
+	JwtKey     string `env:"JWT_KEY"`
+	BucketName string `env:"AWS_S3_BUCKET"`
+	AWS_S3_URL string `env:"AWS_S3_URL"`
 }
 
 func Load() Config {

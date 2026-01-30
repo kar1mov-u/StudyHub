@@ -25,13 +25,14 @@ type HTTPServer struct {
 	router      *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
-		moduleSrv: moduleSrv,
-		userSrv:   userSrv,
-		authSrv:   authSrv,
-		router:    router,
+		moduleSrv:   moduleSrv,
+		userSrv:     userSrv,
+		authSrv:     authSrv,
+		resourceSrv: resSrv,
+		router:      router,
 		httpServer: &http.Server{
 			Addr:    port,
 			Handler: router,
@@ -62,7 +63,7 @@ func (srv *HTTPServer) registerRoutes() {
 
 		//User routes
 		r.Group(func(priv chi.Router) {
-			// priv.Use(srv.authSrv.JWTMiddleware)
+			priv.Use(srv.authSrv.JWTMiddleware)
 
 			priv.Get("/users", srv.ListUsersHandler)
 			priv.Get("/users/{id}", srv.GetUserHandler)
@@ -87,6 +88,10 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Post("/academic-terms", srv.CreateAcademicTermHandler)
 			priv.Patch("/academic-terms/{id}/deactivate", srv.DeactivateAcademicTermHandler)
 			priv.Patch("/academic-terms/{id}/activate", srv.ActivateAcademicTermHandler)
+
+			//Resources routes
+			priv.Post("/resources/{week_id}", srv.UploadFileHandler)
+			priv.Get("/resources/weeks/{week_id}", srv.ListResourcesForWeekHandler)
 		})
 	})
 

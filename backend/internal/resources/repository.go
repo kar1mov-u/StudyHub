@@ -25,8 +25,8 @@ func NewResourceRepositoryPostgres(p *pgxpool.Pool) *ResourceRepositoryPostgres 
 }
 
 func (r *ResourceRepositoryPostgres) Create(ctx context.Context, resource Resource) error {
-	query := `INSERT INTO resources(id, type, hash, url) VALUES ($1, $2, $3, $4)`
-	_, err := r.pool.Exec(ctx, query, resource.ID, resource.ResourceType, resource.Hash, resource.Url)
+	query := `INSERT INTO resources(id,name, type, hash, url) VALUES ($1, $2, $3, $4, $5)`
+	_, err := r.pool.Exec(ctx, query, resource.ID, resource.Name, resource.ResourceType, resource.Hash, resource.Url)
 	if err != nil {
 		return fmt.Errorf("CreateResource err: %w", err)
 	}
@@ -68,7 +68,7 @@ func (r *ResourceRepositoryPostgres) ResourceExists(ctx context.Context, hash st
 }
 
 func (r *ResourceRepositoryPostgres) ListResourcesByWeek(ctx context.Context, id uuid.UUID) ([]Resource, error) {
-	query := `SELECT resource_id FROM week_resources WHERE week_id=$1`
+	query := `SELECT w.resource_id, r.hash, r.name, r.url FROM week_resources w JOIN resources r ON w.resource_id=r.id WHERE week_id=$1`
 	rows, err := r.pool.Query(ctx, query, id)
 
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *ResourceRepositoryPostgres) ListResourcesByWeek(ctx context.Context, id
 	resources := make([]Resource, 0)
 	for rows.Next() {
 		var resource Resource
-		err := rows.Scan(&resource.ID)
+		err := rows.Scan(&resource.ID, &resource.Hash, &resource.Name, &resource.Url)
 		if err != nil {
 			return []Resource{}, fmt.Errorf("ListReousrceByWeek scan err: %w", err)
 		}
