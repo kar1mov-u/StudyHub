@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useAuth } from '@/context/AuthContext'
 import type { Module } from '@/types'
 
 interface ModuleCardProps {
@@ -21,6 +22,7 @@ interface ModuleCardProps {
 
 const ModuleCard: React.FC<ModuleCardProps> = ({ module, onDelete }) => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const handleDelete = () => {
@@ -45,16 +47,18 @@ const ModuleCard: React.FC<ModuleCardProps> = ({ module, onDelete }) => {
         <CardContent>
           <div className="flex items-center justify-between">
             <Badge variant="outline">{module.DepartmentName}</Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                setDeleteDialogOpen(true)
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {user?.IsAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDeleteDialogOpen(true)
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

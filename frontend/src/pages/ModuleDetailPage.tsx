@@ -16,12 +16,14 @@ import {
 import { modulesApi } from '@/api/modules'
 import { moduleRunsApi } from '@/api/moduleRuns'
 import { useToast } from '@/components/ui/toast'
-import type { ModulePage, ModuleRun } from '@/types'
+import { useAuth } from '@/context/AuthContext'
+import type { ModulePage } from '@/types'
 
 const ModuleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { user } = useAuth()
   
   const [modulePage, setModulePage] = useState<ModulePage | null>(null)
   const [loading, setLoading] = useState(true)
@@ -66,6 +68,10 @@ const ModuleDetailPage: React.FC = () => {
     }
   }
 
+  const handleWeekClick = (weekId: string) => {
+    navigate(`/modules/${id}/weeks/${weekId}`)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -100,10 +106,12 @@ const ModuleDetailPage: React.FC = () => {
               {module.DepartmentName}
             </Badge>
           </div>
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Run
-          </Button>
+          {user?.IsAdmin && (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Run
+            </Button>
+          )}
         </div>
       </div>
 
@@ -122,22 +130,29 @@ const ModuleDetailPage: React.FC = () => {
               </p>
               <div className="flex items-center gap-2">
                 <Badge variant="success">Active</Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setDeleteRunId(activeRun.ID)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                {user?.IsAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteRunId(activeRun.ID)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
               </div>
               {weeks && weeks.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-sm font-medium text-muted-foreground">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">
                     Weeks: {weeks.length}
                   </p>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2">
                     {weeks.map((week) => (
-                      <Badge key={week.ID} variant="outline">
+                      <Badge 
+                        key={week.ID} 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                        onClick={() => handleWeekClick(week.ID)}
+                      >
                         Week {week.Number}
                       </Badge>
                     ))}
@@ -152,19 +167,23 @@ const ModuleDetailPage: React.FC = () => {
       {!activeRun && (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <p className="text-muted-foreground">No active run for this module</p>
-          <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Create a run
-          </Button>
+          {user?.IsAdmin && (
+            <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Create a run
+            </Button>
+          )}
         </div>
       )}
 
-      <ModuleRunForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onSuccess={loadModuleData}
-        moduleId={id!}
-      />
+      {user?.IsAdmin && (
+        <ModuleRunForm
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          onSuccess={loadModuleData}
+          moduleId={id!}
+        />
+      )}
 
       <Dialog open={!!deleteRunId} onOpenChange={() => setDeleteRunId(null)}>
         <DialogContent>

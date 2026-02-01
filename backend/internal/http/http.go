@@ -90,7 +90,9 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Patch("/academic-terms/{id}/activate", srv.ActivateAcademicTermHandler)
 
 			//Resources routes
-			priv.Post("/resources/{week_id}", srv.UploadFileHandler)
+			priv.Post("/resources/file/{week_id}", srv.UploadFileHandler)
+			priv.Post("/resources/link/{week_id}", srv.CreateLinkResource)
+			priv.Get("/resources/{id}", srv.GetResourceHandler)
 			priv.Get("/resources/weeks/{week_id}", srv.ListResourcesForWeekHandler)
 		})
 	})

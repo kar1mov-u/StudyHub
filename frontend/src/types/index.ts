@@ -72,6 +72,50 @@ export interface CreateAcademicTermRequest {
   semester: string
 }
 
+// Resource types
+export type ResourceType = 'file' | 'link' | 'note'
+
+export interface Resource {
+  ID: string
+  WeekID: string
+  UserID: string
+  ResourceType: ResourceType
+  Hash: string
+  Name: string
+  Url: string
+  ObjectID: string
+  CreatedAt: string
+  UpdatedAt: string
+}
+
+// User types
+export interface User {
+  ID: string
+  Email: string
+  FirstName: string
+  LastName: string
+  IsAdmin: boolean
+  CreatedAt: string
+  UpdatedAt: string
+}
+
+// Auth types
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface LoginResponse {
+  token: string
+}
+
+export interface RegisterRequest {
+  email: string
+  password: string
+  first_name: string
+  last_name: string
+}
+
 // Response DTOs
 export interface CreateResponse {
   id: string

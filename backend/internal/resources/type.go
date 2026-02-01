@@ -18,10 +18,15 @@ type Resource struct {
 	ID           uuid.UUID
 	WeekID       uuid.UUID
 	UserID       uuid.UUID
+	ObjectID     *uuid.UUID
+	ExternalLink *string
 	ResourceType ResourceType
-	Hash         string
 	Name         string
-	Url          string //url in the cloud storage
 	CreatedAt    time.Time
-	UpdatedAt    time.Time
+}
+
+type storageObject struct {
+	ID   uuid.UUID
+	Hash string
+	URL  string
 }

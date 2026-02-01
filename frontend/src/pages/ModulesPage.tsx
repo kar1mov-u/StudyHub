@@ -5,10 +5,12 @@ import ModuleCard from '@/components/modules/ModuleCard'
 import ModuleForm from '@/components/modules/ModuleForm'
 import { modulesApi } from '@/api/modules'
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/context/AuthContext'
 import type { Module } from '@/types'
 
 const ModulesPage: React.FC = () => {
   const { showToast } = useToast()
+  const { user } = useAuth()
   const [modules, setModules] = useState<Module[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
@@ -54,10 +56,12 @@ const ModulesPage: React.FC = () => {
             Manage your course modules and their runs
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Module
-        </Button>
+        {user?.IsAdmin && (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Module
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -67,10 +71,12 @@ const ModulesPage: React.FC = () => {
       ) : modules.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <p className="text-muted-foreground">No modules found</p>
-          <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Create your first module
-          </Button>
+          {user?.IsAdmin && (
+            <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Create your first module
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -84,11 +90,13 @@ const ModulesPage: React.FC = () => {
         </div>
       )}
 
-      <ModuleForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onSuccess={loadModules}
-      />
+      {user?.IsAdmin && (
+        <ModuleForm
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          onSuccess={loadModules}
+        />
+      )}
     </div>
   )
 }

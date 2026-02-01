@@ -9,3 +9,9 @@ Check if hash exists:
         [storage] do not do anything
         [repo] create the resource in the dp
         [repo] create ownership of user, and week
+
+
+January 30
+
+1. List Weeks Resources, Work on logic of how duplicate resources point to same resource
+2. Create a front end and make sure everythign works

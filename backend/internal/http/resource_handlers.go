@@ -2,6 +2,8 @@ package http
 
 import (
 	"StudyHub/backend/internal/resources"
+	"encoding/json"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
@@ -38,6 +40,38 @@ func (s *HTTPServer) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ResponseWithJSON(w, http.StatusCreated, nil)
+}
+
+func (s *HTTPServer) CreateLinkResource(w http.ResponseWriter, r *http.Request) {
+	weekIDParam := chi.URLParam(r, "week_id")
+	weekID, ok := parseUUID(w, weekIDParam)
+	if !ok {
+		return
+	}
+	idStr := getUserID(r)
+	userID, ok := parseUUID(w, idStr)
+	if !ok {
+		return
+	}
+	var request CreateLinkResourceRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		slog.Error("failed to decode JSON", "err", err)
+		return
+	}
+
+	resource := resources.Resource{ID: uuid.New(), WeekID: weekID, UserID: userID, ResourceType: resources.ResourceLink, ExternalLink: &request.URL, Name: request.Name}
+	err = s.resourceSrv.CreateLinkResource(r.Context(), resource)
+	if err != nil {
+		if errors.Is(err, resources.ErrResourceExists) {
+			ResponseWithErr(w, http.StatusBadRequest, "Link is already uploaded by other user")
+			return
+		} else {
+			ResponseWithErr(w, http.StatusInternalServerError, "failed to create the Link Reosurce")
+			return
+		}
+	}
+	ResponseWithJSON(w, 201, nil)
 
 }
 
@@ -57,4 +91,26 @@ func (s *HTTPServer) ListResourcesForWeekHandler(w http.ResponseWriter, r *http.
 
 	ResponseWithJSON(w, 200, resources)
 
+}
+
+func (s *HTTPServer) GetResourceHandler(w http.ResponseWriter, r *http.Request) {
+
+	idParam := chi.URLParam(r, "id")
+	resourceID, ok := parseUUID(w, idParam)
+	if !ok {
+		return
+	}
+
+	url, err := s.resourceSrv.GetResource(r.Context(), resourceID)
+	if err != nil {
+		ResponseWithErr(w, 500, "failed to get resource")
+		return
+	}
+
+	ResponseWithJSON(w, 200, map[string]string{"url": url})
+}
+
+type CreateLinkResourceRequest struct {
+	URL  string `json:"url"`
+	Name string `json:"name"`
 }

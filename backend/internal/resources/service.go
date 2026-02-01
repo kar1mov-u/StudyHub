@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"log"
 	"log/slog"
@@ -12,13 +13,18 @@ import (
 )
 
 type ResourceRepository interface {
-	Create(context.Context, Resource) error
-	ResourceExists(ctx context.Context, hash string) (uuid.UUID, bool, error)
-	// GetResourceByID(context.Context, uuid.UUID) (Resource, error)
-	ListResourcesByWeek(context.Context, uuid.UUID) ([]Resource, error)
+	CreateFileResource(ctx context.Context, resource Resource) error
+	CreateStorageObject(ctx context.Context, object storageObject) error
 	CreateUserResource(ctx context.Context, resource Resource) error
 	CreateWeekResource(ctx context.Context, resource Resource) error
+	ObjectExists(ctx context.Context, hash string) (uuid.UUID, bool, error)
+	ListResourcesByWeek(ctx context.Context, weekID uuid.UUID) ([]Resource, error)
+	LinkExists(ctx context.Context, resource Resource) (bool, error)
+	CreateLinkResource(ctx context.Context, resource Resource) error
+	// GetStorageKeyForResource(ctx context.Context, resourceID uuid.UUID) (string, error)
 }
+
+var ErrResourceExists = errors.New("resource already exists")
 
 type ResourceService struct {
 	resourceRepo ResourceRepository
@@ -42,9 +48,10 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 	if err != nil {
 		return err
 	}
+
 	hash := hex.EncodeToString(hasher.Sum(nil))
 
-	resourceID, exists, err := s.resourceRepo.ResourceExists(ctx, hash)
+	objectID, exists, err := s.resourceRepo.ObjectExists(ctx, hash)
 	if err != nil {
 		return err
 	}
@@ -53,7 +60,7 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 	if exists {
 		slog.Info("resource exists")
 		//assign the ID returned from the DB, instead of ID in the request
-		resource.ID = resourceID
+		resource.ObjectID = &objectID
 
 		// in the backgound delete the object from the storage
 		go func() {
@@ -64,18 +71,42 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 				slog.Info("successfully deleted the file from the storage")
 			}
 		}()
-	}
-
-	//if not exists should create the record on DB
-	if !exists {
-		resource.Hash = hash
-		resource.Url = storageObjectUrl
-		err = s.resourceRepo.Create(ctx, resource)
+	} else {
+		storageObject := storageObject{ID: storageObjectID}
+		resource.ObjectID = &storageObject.ID
+		storageObject.Hash = hash
+		storageObject.URL = storageObjectUrl
+		err = s.resourceRepo.CreateStorageObject(ctx, storageObject)
 		if err != nil {
 			return err
 		}
 	}
 
+	err = s.resourceRepo.CreateFileResource(ctx, resource)
+	if err != nil {
+		return err
+	}
+	err = s.resourceRepo.CreateUserResource(ctx, resource)
+	if err != nil {
+		return err
+	}
+	return s.resourceRepo.CreateWeekResource(ctx, resource)
+
+}
+
+func (s *ResourceService) CreateLinkResource(ctx context.Context, resource Resource) error {
+	//first check if link exists
+	exists, err := s.resourceRepo.LinkExists(ctx, resource)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrResourceExists
+	}
+	err = s.resourceRepo.CreateLinkResource(ctx, resource)
+	if err != nil {
+		return err
+	}
 	err = s.resourceRepo.CreateUserResource(ctx, resource)
 	if err != nil {
 		return err
@@ -86,4 +117,10 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 
 func (s *ResourceService) ListResourcesForWeek(ctx context.Context, weekID uuid.UUID) ([]Resource, error) {
 	return s.resourceRepo.ListResourcesByWeek(ctx, weekID)
+}
+
+func (s *ResourceService) GetResource(ctx context.Context, id uuid.UUID) (string, error) {
+	//first get the key for the object
+	return s.filesStorage.CreatePresingedURL(ctx, id.String())
+
 }

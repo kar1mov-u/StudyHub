@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -18,10 +19,12 @@ import (
 type FileStorage interface {
 	UploadObject(ctx context.Context, filename string, size int64, body io.Reader) (string, error)
 	DeleteObject(ctx context.Context, filename string) error
+	CreatePresingedURL(ctx context.Context, key string) (string, error)
 }
 
 type S3Storage struct {
 	s3Client   *s3.Client
+	presigner  *s3.PresignClient
 	bucketName string
 	URL        string
 }
@@ -33,7 +36,8 @@ func NewS3Storage(bucketname, url string) *S3Storage {
 		log.Fatal(err)
 	}
 	client := s3.NewFromConfig(cfg)
-	return &S3Storage{s3Client: client, bucketName: bucketname, URL: url}
+	presigner := s3.NewPresignClient(client)
+	return &S3Storage{s3Client: client, bucketName: bucketname, URL: url, presigner: presigner}
 }
 
 func (s *S3Storage) UploadObject(ctx context.Context, filename string, size int64, body io.Reader) (string, error) {
@@ -72,4 +76,18 @@ func (s *S3Storage) DeleteObject(ctx context.Context, key string) error {
 	}
 
 	return err
+}
+
+func (s *S3Storage) CreatePresingedURL(ctx context.Context, key string) (string, error) {
+	request, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(key),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = time.Duration(60 * int64(time.Second))
+	})
+	if err != nil {
+		log.Printf("Couldn't get a presigned request to get %v:%v. Here's why: %v\n",
+			s.bucketName, key, err)
+	}
+	return request.URL, err
 }
