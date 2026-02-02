@@ -28,3 +28,4 @@ CREATE TABLE IF NOT EXISTS week_resources (
     PRIMARY KEY (resource_id, week_id)
 );
 
+

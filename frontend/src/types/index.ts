@@ -79,6 +79,7 @@ export interface Resource {
   ID: string
   WeekID: string
   UserID: string
+  UserName: string
   ResourceType: ResourceType
   Hash: string
   Name: string

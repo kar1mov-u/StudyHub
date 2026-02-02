@@ -14,6 +14,7 @@ import (
 
 // get the week from the urlParam, userID from the r.Context().  POST /resources/week/week_id
 func (s *HTTPServer) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("starting upload")
 	weekIDParam := chi.URLParam(r, "week_id")
 	weekID, ok := parseUUID(w, weekIDParam)
 	if !ok {
@@ -34,7 +35,12 @@ func (s *HTTPServer) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	err = s.resourceSrv.UploadResource(r.Context(), file, handler.Size, resources.Resource{ID: uuid.New(), WeekID: weekID, UserID: userID, ResourceType: resources.ResourceFile, Name: handler.Filename})
+
 	if err != nil {
+		if errors.Is(err, resources.ErrResourceExists) {
+			ResponseWithErr(w, http.StatusBadRequest, "file is uploaded by other user already")
+			return
+		}
 		slog.Error("failed to upload file", "err", err)
 		ResponseWithErr(w, 500, "failed to upload file")
 		return

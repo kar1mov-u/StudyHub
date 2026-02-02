@@ -1,10 +1,11 @@
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import React, { useState } from 'react'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileText, Link as LinkIcon, StickyNote, Download, ExternalLink } from 'lucide-react'
+import { FileText, Link as LinkIcon, StickyNote, Download, ExternalLink, Copy, Check } from 'lucide-react'
 import { resourcesApi } from '@/api/resources'
 import type { Resource, ResourceType } from '@/types'
+import { Link } from 'react-router-dom'
 
 interface ResourceCardProps {
   resource: Resource
@@ -37,6 +38,8 @@ const getResourceTypeBadge = (type: ResourceType) => {
 }
 
 const ResourceCard: React.FC<ResourceCardProps> = ({ resource }) => {
+  const [copied, setCopied] = useState(false)
+
   const handleDownload = () => {
     if (resource.ObjectID) {
       resourcesApi.downloadResource(resource.ObjectID)
@@ -46,6 +49,18 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource }) => {
   const handleOpenLink = () => {
     if (resource.Url) {
       window.open(resource.Url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const handleCopyLink = async () => {
+    if (resource.Url) {
+      try {
+        await navigator.clipboard.writeText(resource.Url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (err) {
+        console.error('Failed to copy link:', err)
+      }
     }
   }
 
@@ -68,26 +83,53 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          <Button
-            onClick={resource.ResourceType === 'link' ? handleOpenLink : handleDownload}
-            className="w-full"
-            variant="default"
-            disabled={resource.ResourceType === 'link' ? !resource.Url : !resource.ObjectID}
-          >
-            {resource.ResourceType === 'link' ? (
-              <>
+          {resource.ResourceType === 'link' ? (
+            <div className="flex gap-2">
+              <Button
+                onClick={handleOpenLink}
+                className="flex-1"
+                variant="default"
+                disabled={!resource.Url}
+              >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Open Link
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </>
-            )}
-          </Button>
+              </Button>
+              <Button
+                onClick={handleCopyLink}
+                variant="outline"
+                disabled={!resource.Url}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={handleDownload}
+              className="w-full"
+              variant="default"
+              disabled={!resource.ObjectID}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          )}
         </div>
       </CardContent>
+      <CardFooter className="pt-0">
+        <div className="text-sm text-muted-foreground">
+          Uploaded by{' '}
+          <Link 
+            to={`/users/${resource.UserID}`} 
+            className="text-primary hover:underline font-medium"
+          >
+            {resource.UserName}
+          </Link>
+        </div>
+      </CardFooter>
     </Card>
   )
 }
