@@ -2,6 +2,7 @@ package http
 
 import (
 	"StudyHub/backend/internal/resources"
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -98,6 +99,22 @@ func (s *HTTPServer) ListResourcesForWeekHandler(w http.ResponseWriter, r *http.
 	ResponseWithJSON(w, 200, resources)
 
 }
+func (s *HTTPServer) ListResourcesForUserHandler(w http.ResponseWriter, r *http.Request) {
+	userIDParam := chi.URLParam(r, "user_id")
+	userID, ok := parseUUID(w, userIDParam)
+	if !ok {
+		return
+	}
+
+	resources, err := s.resourceSrv.ListResourceForUser(r.Context(), userID)
+	if err != nil {
+		slog.Error("failed to list resources for user", "err", err)
+		ResponseWithErr(w, 500, "failed to list resources")
+		return
+	}
+
+	ResponseWithJSON(w, 200, resources)
+}
 
 func (s *HTTPServer) GetResourceHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -114,6 +131,38 @@ func (s *HTTPServer) GetResourceHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	ResponseWithJSON(w, 200, map[string]string{"url": url})
+}
+
+func (s *HTTPServer) CleanOrphanObjectsHandler(w http.ResponseWriter, r *http.Request) {
+	//here try to do some authorization maybe by some token key
+	ids, err := s.resourceSrv.CleanOrphanObjects(r.Context())
+	if err != nil {
+		slog.Error("failed to clean orphan objects", "err", err)
+		ResponseWithErr(w, http.StatusInternalServerError, "failed to delete ")
+		return
+	}
+	slog.Info("cleaned orphan objects from the storage", "id's:", ids)
+	ResponseWithJSON(w, 200, nil)
+}
+func (s *HTTPServer) DeleteResourceHandler(w http.ResponseWriter, r *http.Request) {
+	resourceIDParm := chi.URLParam(r, "id")
+	resourceID, ok := parseUUID(w, resourceIDParm)
+	if !ok {
+		return
+	}
+	userIDStr := getUserID(r)
+	userID, ok := parseUUID(w, userIDStr)
+	if !ok {
+		return
+	}
+
+	err := s.resourceSrv.DeleteResource(context.Background(), userID, resourceID)
+	if err != nil {
+		slog.Error("failed to delete resource", "err:", err)
+		ResponseWithErr(w, http.StatusInternalServerError, "failed to delete resource")
+		return
+	}
+	ResponseWithJSON(w, 200, nil)
 }
 
 type CreateLinkResourceRequest struct {

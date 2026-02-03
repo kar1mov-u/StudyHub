@@ -91,6 +91,33 @@ func (s *HTTPServer) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (s *HTTPServer) GetMeHandler(w http.ResponseWriter, r *http.Request) {
+	idParm := getUserID(r)
+	userID, ok := parseUUID(w, idParm)
+	if !ok {
+		return
+	}
+	user, err := s.userSrv.Get(r.Context(), userID)
+	if err != nil {
+		if isNotFoundError(err) {
+			ResponseWithErr(w, http.StatusNotFound, "user not found")
+			return
+		}
+		slog.Error("failed to get user", "err", err)
+		return
+	}
+
+	userDto := UserDTO{
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email,
+		IsAdmin:   user.IsAdmin,
+	}
+
+	ResponseWithJSON(w, 200, userDto)
+
+}
+
 func (s *HTTPServer) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 	id, ok := parseUUID(w, idParam)

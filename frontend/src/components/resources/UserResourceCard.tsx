@@ -1,15 +1,14 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FileText, Link as LinkIcon, StickyNote, Download, ExternalLink, Copy, Check, Trash2 } from 'lucide-react'
 import { resourcesApi } from '@/api/resources'
-import type { Resource, ResourceType } from '@/types'
-import { Link } from 'react-router-dom'
+import type { UserResource, ResourceType } from '@/types'
 
-interface ResourceCardProps {
-  resource: Resource
-  currentUserId?: string
+interface UserResourceCardProps {
+  resource: UserResource
+  showDelete?: boolean
   onDelete?: (resourceId: string) => void
 }
 
@@ -39,11 +38,9 @@ const getResourceTypeBadge = (type: ResourceType) => {
   }
 }
 
-const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, onDelete }) => {
+const UserResourceCard: React.FC<UserResourceCardProps> = ({ resource, showDelete = false, onDelete }) => {
   const [copied, setCopied] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  
-  const isOwnResource = currentUserId && currentUserId === resource.UserID
 
   const handleDownload = () => {
     if (resource.ObjectID) {
@@ -52,15 +49,15 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
   }
 
   const handleOpenLink = () => {
-    if (resource.Url) {
-      window.open(resource.Url, '_blank', 'noopener,noreferrer')
+    if (resource.ExternalLink) {
+      window.open(resource.ExternalLink, '_blank', 'noopener,noreferrer')
     }
   }
 
   const handleCopyLink = async () => {
-    if (resource.Url) {
+    if (resource.ExternalLink) {
       try {
-        await navigator.clipboard.writeText(resource.Url)
+        await navigator.clipboard.writeText(resource.ExternalLink)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       } catch (err) {
@@ -102,10 +99,16 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
               <CardTitle className="text-lg truncate">
                 {resource.Name || 'Untitled Resource'}
               </CardTitle>
+              <div className="text-sm text-muted-foreground mt-1">
+                <div>{resource.ModuleName}</div>
+                <div>
+                  {resource.Semester} {resource.Year}, Week {resource.WeekNumber}
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isOwnResource && onDelete && (
+            {showDelete && (
               <Button
                 onClick={handleDelete}
                 variant="ghost"
@@ -128,7 +131,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
                 onClick={handleOpenLink}
                 className="flex-1"
                 variant="default"
-                disabled={!resource.Url}
+                disabled={!resource.ExternalLink}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Open Link
@@ -136,7 +139,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
               <Button
                 onClick={handleCopyLink}
                 variant="outline"
-                disabled={!resource.Url}
+                disabled={!resource.ExternalLink}
               >
                 {copied ? (
                   <Check className="h-4 w-4" />
@@ -158,19 +161,8 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
           )}
         </div>
       </CardContent>
-      <CardFooter className="pt-0">
-        <div className="text-sm text-muted-foreground">
-          Uploaded by{' '}
-          <Link 
-            to={`/users/${resource.UserID}`} 
-            className="text-primary hover:underline font-medium"
-          >
-            {resource.UserName}
-          </Link>
-        </div>
-      </CardFooter>
     </Card>
   )
 }
 
-export default ResourceCard
+export default UserResourceCard

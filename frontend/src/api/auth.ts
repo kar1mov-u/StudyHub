@@ -16,4 +16,9 @@ export const authApi = {
     const response = await apiClient.get(`/users/${userId}`)
     return response.data
   },
+
+  getMe: async (): Promise<User> => {
+    const response = await apiClient.get('/users/me')
+    return response.data
+  },
 }

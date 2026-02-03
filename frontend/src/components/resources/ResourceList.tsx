@@ -7,12 +7,16 @@ interface ResourceListProps {
   resources: Resource[]
   isLoading?: boolean
   emptyMessage?: string
+  currentUserId?: string
+  onDelete?: (resourceId: string) => void
 }
 
 const ResourceList: React.FC<ResourceListProps> = ({ 
   resources, 
   isLoading,
-  emptyMessage = 'No resources available'
+  emptyMessage = 'No resources available',
+  currentUserId,
+  onDelete,
 }) => {
   if (isLoading) {
     return (
@@ -42,7 +46,12 @@ const ResourceList: React.FC<ResourceListProps> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {resources.map((resource) => (
-        <ResourceCard key={resource.ID} resource={resource} />
+        <ResourceCard 
+          key={resource.ID} 
+          resource={resource}
+          currentUserId={currentUserId}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   )

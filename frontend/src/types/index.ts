@@ -89,6 +89,21 @@ export interface Resource {
   UpdatedAt: string
 }
 
+export interface UserResource {
+  ID: string
+  WeekID: string
+  UserID: string
+  ModuleName: string
+  Semester: string
+  Year: number
+  WeekNumber: number
+  ObjectID: string | null
+  ExternalLink: string | null
+  ResourceType: ResourceType
+  Name: string
+  CreatedAt: string
+}
+
 // User types
 export interface User {
   ID: string

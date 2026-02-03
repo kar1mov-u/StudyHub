@@ -43,3 +43,19 @@ type ResourceWithUser struct {
 	Name         string
 	CreatedAt    time.Time
 }
+
+// its used to get resources that are shared by user, should include info about when and where uploaded(Module,Semester, WeekNum)
+type UserResources struct {
+	ID           uuid.UUID
+	WeekID       uuid.UUID // we should give uuid for that week, so by clicking on link, user will be redirected to the weeks page
+	UserID       uuid.UUID
+	ModuleName   string //for better context
+	Semester     string
+	Year         int
+	WeekNumber   int
+	ObjectID     *uuid.UUID // do we need this, we shouldnt be able to download from there, should be just for listing, later can change
+	ExternalLink *string
+	ResourceType ResourceType
+	Name         string
+	CreatedAt    time.Time
+}

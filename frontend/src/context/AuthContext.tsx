@@ -29,37 +29,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Decode JWT token to get user ID
-  const decodeToken = (token: string): string | null => {
-    try {
-      const base64Url = token.split('.')[1]
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      )
-      const payload = JSON.parse(jsonPayload)
-      return payload.sub // User ID from 'sub' claim
-    } catch (error) {
-      console.error('Failed to decode token:', error)
-      return null
-    }
-  }
-
   // Initialize auth state on mount
   useEffect(() => {
     const initializeAuth = async () => {
       const token = localStorage.getItem('auth_token')
-      const cachedUser = localStorage.getItem('auth_user')
 
-      if (token && cachedUser) {
+      if (token) {
         try {
-          const parsedUser = JSON.parse(cachedUser)
-          setUser(parsedUser)
+          // Always fetch fresh user data from /users/me endpoint
+          const userData = await authApi.getMe()
+          setUser(userData)
+          localStorage.setItem('auth_user', JSON.stringify(userData))
         } catch (error) {
-          console.error('Failed to parse cached user:', error)
+          console.error('Failed to fetch user data:', error)
+          // If token is invalid, clear storage
           localStorage.removeItem('auth_token')
           localStorage.removeItem('auth_user')
         }
@@ -75,14 +58,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { token } = await authApi.login(credentials)
       localStorage.setItem('auth_token', token)
 
-      // Decode token to get user ID
-      const userId = decodeToken(token)
-      if (!userId) {
-        throw new Error('Invalid token')
-      }
-
-      // Fetch user details
-      const userData = await authApi.getCurrentUser(userId)
+      // Fetch user details using /users/me endpoint
+      const userData = await authApi.getMe()
       setUser(userData)
       localStorage.setItem('auth_user', JSON.stringify(userData))
     } catch (error) {

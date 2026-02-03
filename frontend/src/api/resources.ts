@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Resource } from '@/types'
+import type { Resource, UserResource } from '@/types'
 
 export const resourcesApi = {
   getResourcesByWeek: async (weekId: string): Promise<Resource[]> => {
@@ -38,5 +38,14 @@ export const resourcesApi = {
       console.error('Download failed:', error)
       throw error
     }
+  },
+
+  getUserResources: async (userId: string): Promise<UserResource[]> => {
+    const response = await apiClient.get(`/resources/users/${userId}`)
+    return response.data
+  },
+
+  deleteResource: async (resourceId: string): Promise<void> => {
+    await apiClient.delete(`/resources/${resourceId}`)
   },
 }

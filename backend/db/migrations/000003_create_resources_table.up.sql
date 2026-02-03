@@ -27,5 +27,7 @@ CREATE TABLE IF NOT EXISTS week_resources (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY (resource_id, week_id)
 );
+select storage_objects that doestn have resources(id)
 
+SELECT so.id FROM storage_objects so LEFT JOIN resources r ON so.id=r.storage_object_id WHERE r.id IS NULL;
 

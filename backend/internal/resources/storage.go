@@ -54,7 +54,6 @@ func (s *S3Storage) UploadObject(ctx context.Context, filename string, size int6
 }
 
 func (s *S3Storage) DeleteObject(ctx context.Context, key string) error {
-	// deleted := false
 	input := s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(key),

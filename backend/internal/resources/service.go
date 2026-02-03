@@ -19,8 +19,12 @@ type ResourceRepository interface {
 	CreateWeekResource(ctx context.Context, resource Resource) error
 	ObjectExists(ctx context.Context, hash string) (uuid.UUID, bool, error)
 	ListResourcesByWeek(ctx context.Context, weekID uuid.UUID) ([]ResourceWithUser, error)
+	ListUserResources(ctx context.Context, userID uuid.UUID) ([]UserResources, error)
 	LinkExistsInWeek(ctx context.Context, resource Resource) (bool, error)
 	FileExistsInWeek(ctx context.Context, hash string, weekID uuid.UUID) (bool, error)
+	ListOrphanObjects(ctx context.Context) ([]uuid.UUID, error)
+	DeleteStorageObjecst(ctx context.Context, ids []uuid.UUID) error
+	DeleteResource(ctx context.Context, userID, resourceID uuid.UUID) error
 }
 
 var ErrResourceExists = errors.New("resource already exists")
@@ -125,8 +129,40 @@ func (s *ResourceService) ListResourcesForWeek(ctx context.Context, weekID uuid.
 	return s.resourceRepo.ListResourcesByWeek(ctx, weekID)
 }
 
+func (s *ResourceService) ListResourceForUser(ctx context.Context, userID uuid.UUID) ([]UserResources, error) {
+	return s.resourceRepo.ListUserResources(ctx, userID)
+}
+
 func (s *ResourceService) GetResource(ctx context.Context, id uuid.UUID) (string, error) {
 	//first get the key for the object
 	return s.filesStorage.CreatePresingedURL(ctx, id.String())
 
+}
+
+func (s *ResourceService) CleanOrphanObjects(ctx context.Context) ([]uuid.UUID, error) {
+	//get the keys of the files that are not referenced.
+	ids, err := s.resourceRepo.ListOrphanObjects(ctx)
+	if err != nil {
+		return []uuid.UUID{}, err
+	}
+
+	deletedIds := make([]uuid.UUID, 0)
+	for _, id := range ids {
+		err = s.filesStorage.DeleteObject(context.TODO(), id.String())
+		if err != nil {
+			slog.Error("failed to delete storage Object", "err", err)
+		} else {
+			deletedIds = append(deletedIds, id)
+		}
+	}
+	err = s.resourceRepo.DeleteStorageObjecst(ctx, deletedIds)
+	if err != nil {
+		slog.Error("failed to delete storage_objects from DB, but deleted from the storage", "err", err, "ids", ids)
+		return []uuid.UUID{}, err
+	}
+	return deletedIds, nil
+}
+
+func (s *ResourceService) DeleteResource(ctx context.Context, userID, resourceID uuid.UUID) error {
+	return s.resourceRepo.DeleteResource(ctx, userID, resourceID)
 }

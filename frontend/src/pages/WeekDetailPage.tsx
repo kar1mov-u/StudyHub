@@ -9,12 +9,14 @@ import ResourceUploadDialog from '@/components/resources/ResourceUploadDialog'
 import ResourceLinkDialog from '@/components/resources/ResourceLinkDialog'
 import { resourcesApi } from '@/api/resources'
 import { modulesApi } from '@/api/modules'
+import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/toast'
 import type { Resource, ModulePage } from '@/types'
 
 const WeekDetailPage: React.FC = () => {
   const { moduleId, weekId } = useParams<{ moduleId: string; weekId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { showToast } = useToast()
   
   const [resources, setResources] = useState<Resource[]>([])
@@ -58,6 +60,11 @@ const WeekDetailPage: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [moduleId, weekId, showToast])
+
+  const handleDeleteResource = (resourceId: string) => {
+    setResources(prevResources => prevResources.filter(r => r.ID !== resourceId))
+    showToast('Resource deleted successfully', 'success')
+  }
 
   if (loading) {
     return (
@@ -136,6 +143,8 @@ const WeekDetailPage: React.FC = () => {
             resources={fileResources} 
             isLoading={loading}
             emptyMessage="No files uploaded yet"
+            currentUserId={user?.ID}
+            onDelete={handleDeleteResource}
           />
         </TabsContent>
 
@@ -144,6 +153,8 @@ const WeekDetailPage: React.FC = () => {
             resources={linkResources} 
             isLoading={loading}
             emptyMessage="No links added yet"
+            currentUserId={user?.ID}
+            onDelete={handleDeleteResource}
           />
         </TabsContent>
       </Tabs>

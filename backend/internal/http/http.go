@@ -66,6 +66,7 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Use(srv.authSrv.JWTMiddleware)
 
 			priv.Get("/users", srv.ListUsersHandler)
+			priv.Get("/users/me", srv.GetMeHandler)
 			priv.Get("/users/{id}", srv.GetUserHandler)
 			priv.Delete("/users/{id}", srv.DeleteUserHandler)
 			// Module routes
@@ -92,8 +93,16 @@ func (srv *HTTPServer) registerRoutes() {
 			//Resources routes
 			priv.Post("/resources/file/{week_id}", srv.UploadFileHandler)
 			priv.Post("/resources/link/{week_id}", srv.CreateLinkResource)
+			priv.Delete("/resources/{id}", srv.DeleteResourceHandler)
 			priv.Get("/resources/{id}", srv.GetResourceHandler)
 			priv.Get("/resources/weeks/{week_id}", srv.ListResourcesForWeekHandler)
+			priv.Get("/resources/users/{user_id}", srv.ListResourcesForUserHandler)
+
+			//interanl processes
+		})
+		r.Group(func(inter chi.Router) {
+			inter.Get("/interal/jobs/cleanup-orphaned-objects", srv.CleanOrphanObjectsHandler)
+
 		})
 	})
 
