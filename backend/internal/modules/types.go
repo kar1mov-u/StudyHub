@@ -31,7 +31,6 @@ type ModuleRun struct {
 	ModuleID  uuid.UUID
 	Year      int
 	Semester  string
-	IsActive  bool
 	CreatedAt time.Time
 }
 

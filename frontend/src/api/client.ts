@@ -7,6 +7,38 @@ const apiClient = axios.create({
   },
 })
 
+// Helper function to transform user object from backend format to frontend format
+const transformUserData = (data: any): any => {
+  if (data && typeof data === 'object') {
+    // If this is a user object (has user_id field), transform it
+    if ('user_id' in data) {
+      return {
+        ID: data.user_id,
+        FirstName: data.first_name,
+        LastName: data.last_name,
+        Email: data.email,
+        IsAdmin: data.is_admin,
+        CreatedAt: data.created_at || data.CreatedAt,
+        UpdatedAt: data.updated_at || data.UpdatedAt,
+      }
+    }
+    
+    // If data is an array, transform each item
+    if (Array.isArray(data)) {
+      return data.map(transformUserData)
+    }
+    
+    // If data is an object, recursively transform nested objects
+    const transformed: any = {}
+    for (const [key, value] of Object.entries(data)) {
+      transformed[key] = transformUserData(value)
+    }
+    return transformed
+  }
+  
+  return data
+}
+
 // Request interceptor to add JWT token to all requests
 apiClient.interceptors.request.use(
   (config) => {
@@ -26,9 +58,12 @@ apiClient.interceptors.response.use(
   (response) => {
     // Unwrap { data: ... } from the response
     if (response.data && 'data' in response.data) {
-      return { ...response, data: response.data.data }
+      // Transform user_id to ID for user objects
+      const unwrappedData = transformUserData(response.data.data)
+      return { ...response, data: unwrappedData }
     }
-    return response
+    // Transform even if data is not wrapped
+    return { ...response, data: transformUserData(response.data) }
   },
   (error) => {
     // Handle 401 Unauthorized - clear token and redirect to login

@@ -149,7 +149,6 @@ func (s *HTTPServer) CreateModuleRunHandler(w http.ResponseWriter, r *http.Reque
 		ModuleID:  moduleID,
 		Year:      req.Year,
 		Semester:  req.Semester,
-		IsActive:  req.IsActive,
 		CreatedAt: time.Now(),
 	}
 

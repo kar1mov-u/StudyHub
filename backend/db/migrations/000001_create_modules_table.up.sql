@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS modules (
     id UUID PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL UNIQUE,
-    department_name TEXT NOT NULL UNIQUE,
+    department_name TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS module_runs (
     module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
     year INT NOT NULL,
     semester TEXT NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (module_id, year, semester)
 );

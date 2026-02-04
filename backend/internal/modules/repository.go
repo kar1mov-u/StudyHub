@@ -79,9 +79,9 @@ func NewModuleRunRepositoryPostgres(p *pgxpool.Pool) *ModuleRunRepositoryPostgre
 func (r *ModuleRunRepositoryPostgres) GetByID(ctx context.Context, id uuid.UUID) (ModuleRun, error) {
 	var moduleRun ModuleRun
 
-	query := `SELECT id, module_id, year, semester, is_active, created_at FROM module_runs WHERE id=$1`
+	query := `SELECT id, module_id, year, semester, created_at FROM module_runs WHERE id=$1`
 	row := r.pool.QueryRow(ctx, query, id)
-	err := row.Scan(&moduleRun.ID, &moduleRun.ModuleID, &moduleRun.Year, &moduleRun.Semester, &moduleRun.IsActive, &moduleRun.CreatedAt)
+	err := row.Scan(&moduleRun.ID, &moduleRun.ModuleID, &moduleRun.Year, &moduleRun.Semester, &moduleRun.CreatedAt)
 	if err != nil {
 		return ModuleRun{}, fmt.Errorf("GetModuleRun err: %w", err)
 	}
@@ -89,29 +89,29 @@ func (r *ModuleRunRepositoryPostgres) GetByID(ctx context.Context, id uuid.UUID)
 }
 
 func (r *ModuleRunRepositoryPostgres) Create(ctx context.Context, moduleRun ModuleRun) error {
-	query := `INSERT INTO module_runs (id, module_id, year, semester, is_active, created_at) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := r.pool.Exec(ctx, query, moduleRun.ID, moduleRun.ModuleID, moduleRun.Year, moduleRun.Semester, moduleRun.IsActive, moduleRun.CreatedAt)
+	query := `INSERT INTO module_runs (id, module_id, year, semester, created_at) VALUES ($1, $2, $3, $4, $5)`
+	_, err := r.pool.Exec(ctx, query, moduleRun.ID, moduleRun.ModuleID, moduleRun.Year, moduleRun.Semester, moduleRun.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("InsertModuleRun err: %w", err)
 	}
 	return nil
 }
 
-func (r *ModuleRunRepositoryPostgres) GetActiveByModuleID(ctx context.Context, moduleID uuid.UUID) (ModuleRun, error) {
+func (r *ModuleRunRepositoryPostgres) GetLatestModuleRun(ctx context.Context, moduleID uuid.UUID) (ModuleRun, error) {
 	var moduleRun ModuleRun
 
-	query := `SELECT id, module_id, year, semester, is_active, created_at FROM module_runs WHERE module_id=$1 AND is_active=true`
+	query := `SELECT id, module_id, year, semester, created_at FROM module_runs WHERE module_id=$1 ORDER BY created_at DESC LIMIT 1`
 	row := r.pool.QueryRow(ctx, query, moduleID)
-	err := row.Scan(&moduleRun.ID, &moduleRun.ModuleID, &moduleRun.Year, &moduleRun.Semester, &moduleRun.IsActive, &moduleRun.CreatedAt)
+	err := row.Scan(&moduleRun.ID, &moduleRun.ModuleID, &moduleRun.Year, &moduleRun.Semester, &moduleRun.CreatedAt)
 	if err != nil {
-		return ModuleRun{}, fmt.Errorf("GetActiveModuleRun err: %w", err)
+		return ModuleRun{}, fmt.Errorf("GetLatestModuleRun err: %w", err)
 	}
 	return moduleRun, nil
 }
 
 func (r *ModuleRunRepositoryPostgres) ListByModuleID(ctx context.Context, moduleID uuid.UUID) ([]ModuleRun, error) {
 	moduleRuns := make([]ModuleRun, 0)
-	query := `SELECT id, module_id, year, semester, is_active, created_at FROM module_runs WHERE module_id=$1`
+	query := `SELECT id, module_id, year, semester, created_at FROM module_runs WHERE module_id=$1`
 	rows, err := r.pool.Query(ctx, query, moduleID)
 	if err != nil {
 		return []ModuleRun{}, fmt.Errorf("ListModuleRuns query err: %w", err)
@@ -120,7 +120,7 @@ func (r *ModuleRunRepositoryPostgres) ListByModuleID(ctx context.Context, module
 
 	for rows.Next() {
 		var moduleRun ModuleRun
-		err := rows.Scan(&moduleRun.ID, &moduleRun.ModuleID, &moduleRun.Year, &moduleRun.Semester, &moduleRun.IsActive, &moduleRun.CreatedAt)
+		err := rows.Scan(&moduleRun.ID, &moduleRun.ModuleID, &moduleRun.Year, &moduleRun.Semester, &moduleRun.CreatedAt)
 		if err != nil {
 			return []ModuleRun{}, fmt.Errorf("ListModuleRuns scan err: %w", err)
 		}
@@ -128,15 +128,6 @@ func (r *ModuleRunRepositoryPostgres) ListByModuleID(ctx context.Context, module
 	}
 
 	return moduleRuns, nil
-}
-
-func (r *ModuleRunRepositoryPostgres) DeactivateByModuleID(ctx context.Context, moduleID uuid.UUID) error {
-	query := `UPDATE module_runs SET is_active=false WHERE module_id=$1`
-	_, err := r.pool.Exec(ctx, query, moduleID)
-	if err != nil {
-		return fmt.Errorf("DeactivateModuleRuns err: %w", err)
-	}
-	return nil
 }
 
 func (r *ModuleRunRepositoryPostgres) Delete(ctx context.Context, id uuid.UUID) error {
@@ -254,9 +245,9 @@ func (r *AcademicCalendarRepositoryPostgres) List(ctx context.Context) ([]Academ
 	return terms, nil
 }
 
-func (r *AcademicCalendarRepositoryPostgres) DeActivate(ctx context.Context, id uuid.UUID) error {
-	query := `UPDATE academic_terms SET is_active=false WHERE id=$1`
-	_, err := r.pool.Exec(ctx, query, id)
+func (r *AcademicCalendarRepositoryPostgres) DeActivate(ctx context.Context) error {
+	query := `UPDATE academic_terms SET is_active=false`
+	_, err := r.pool.Exec(ctx, query)
 	if err != nil {
 		return fmt.Errorf("DeactivateAcademicTerm err: %w", err)
 	}

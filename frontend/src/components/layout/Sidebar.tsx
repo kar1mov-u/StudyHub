@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, BookOpen, Calendar, User } from 'lucide-react'
+import { Home, BookOpen, Calendar, User, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
@@ -49,6 +49,21 @@ const Sidebar: React.FC = () => {
           <Calendar className="h-5 w-5" />
           <span className="font-medium">Academic Terms</span>
         </Link>
+
+        {user?.IsAdmin && (
+          <Link
+            to="/admin"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+              location.pathname === '/admin'
+                ? "bg-primary text-primary-foreground"
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <Shield className="h-5 w-5" />
+            <span className="font-medium">Admin Panel</span>
+          </Link>
+        )}
 
         {user && (
           <Link

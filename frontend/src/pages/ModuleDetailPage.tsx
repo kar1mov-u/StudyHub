@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Plus, Loader2, Trash2, Calendar } from 'lucide-react'
-import ModuleRunForm from '@/components/modules/ModuleRunForm'
+import { Select } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { ArrowLeft, Loader2, Trash2, Calendar } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import { modulesApi } from '@/api/modules'
 import { moduleRunsApi } from '@/api/moduleRuns'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/context/AuthContext'
-import type { ModulePage } from '@/types'
+import type { Module, ModuleRun, Week } from '@/types'
 
 const ModuleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -25,18 +26,39 @@ const ModuleDetailPage: React.FC = () => {
   const { showToast } = useToast()
   const { user } = useAuth()
   
-  const [modulePage, setModulePage] = useState<ModulePage | null>(null)
+  const [module, setModule] = useState<Module | null>(null)
+  const [allRuns, setAllRuns] = useState<ModuleRun[]>([])
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [weeks, setWeeks] = useState<Week[]>([])
   const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
+  const [weeksLoading, setWeeksLoading] = useState(false)
   const [deleteRunId, setDeleteRunId] = useState<string | null>(null)
+
+  // Get the selected run object
+  const selectedRun = allRuns.find((run) => run.ID === selectedRunId)
 
   const loadModuleData = async () => {
     if (!id) return
     
     try {
       setLoading(true)
-      const data = await modulesApi.getModuleFull(id)
-      setModulePage(data)
+      // Load module info and active run (default)
+      const modulePage = await modulesApi.getModuleFull(id)
+      setModule(modulePage.Module)
+      
+      // Load all runs for this module
+      const runs = await moduleRunsApi.listModuleRuns(id)
+      setAllRuns(runs)
+      
+      // Set default to active run if it exists, otherwise first run
+      if (modulePage.Run) {
+        setSelectedRunId(modulePage.Run.ID)
+        setWeeks(modulePage.Weeks || [])
+      } else if (runs.length > 0) {
+        setSelectedRunId(runs[0].ID)
+        // Load weeks for first run
+        await loadWeeksForRun(runs[0].ID)
+      }
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Failed to load module',
@@ -48,9 +70,31 @@ const ModuleDetailPage: React.FC = () => {
     }
   }
 
+  const loadWeeksForRun = async (runId: string) => {
+    try {
+      setWeeksLoading(true)
+      const runPage = await moduleRunsApi.getModuleRun(runId)
+      setWeeks(runPage.Weeks || [])
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to load weeks',
+        'error'
+      )
+      setWeeks([])
+    } finally {
+      setWeeksLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadModuleData()
   }, [id])
+
+  const handleRunChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newRunId = e.target.value
+    setSelectedRunId(newRunId)
+    await loadWeeksForRun(newRunId)
+  }
 
   const handleDeleteRun = async () => {
     if (!deleteRunId) return
@@ -59,6 +103,11 @@ const ModuleDetailPage: React.FC = () => {
       await moduleRunsApi.deleteModuleRun(deleteRunId)
       showToast('Module run deleted successfully', 'success')
       setDeleteRunId(null)
+      // If we deleted the selected run, reset selection
+      if (deleteRunId === selectedRunId) {
+        setSelectedRunId(null)
+        setWeeks([])
+      }
       loadModuleData()
     } catch (error) {
       showToast(
@@ -80,11 +129,9 @@ const ModuleDetailPage: React.FC = () => {
     )
   }
 
-  if (!modulePage) {
+  if (!module) {
     return null
   }
-
-  const { Module: module, Run: activeRun, Weeks: weeks } = modulePage
 
   return (
     <div className="space-y-6">
@@ -106,42 +153,63 @@ const ModuleDetailPage: React.FC = () => {
               {module.DepartmentName}
             </Badge>
           </div>
-          {user?.IsAdmin && (
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Run
-            </Button>
-          )}
         </div>
       </div>
 
-      {activeRun && (
+      {allRuns.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Active Run
+              Module Run
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <p className="text-lg capitalize">
-                {activeRun.Semester} {activeRun.Year}
-              </p>
-              <div className="flex items-center gap-2">
-                <Badge variant="success">Active</Badge>
-                {user?.IsAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDeleteRunId(activeRun.ID)}
+            <div className="space-y-4">
+              {/* Run Selection Dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="run-select">Select Module Run</Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    id="run-select"
+                    value={selectedRunId || ''}
+                    onChange={handleRunChange}
+                    className="flex-1"
                   >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                )}
+                    {allRuns.map((run) => (
+                      <option key={run.ID} value={run.ID}>
+                        {run.Semester.charAt(0).toUpperCase() + run.Semester.slice(1)} {run.Year}
+                      </option>
+                    ))}
+                  </Select>
+                  {user?.IsAdmin && selectedRun && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteRunId(selectedRun.ID)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              {weeks && weeks.length > 0 && (
-                <div className="mt-4">
+
+              {/* Selected Run Info */}
+              {selectedRun && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground capitalize">
+                    {selectedRun.Semester} {selectedRun.Year}
+                  </span>
+                </div>
+              )}
+
+              {/* Weeks Display */}
+              {weeksLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : weeks.length > 0 ? (
+                <div>
                   <p className="text-sm font-medium text-muted-foreground mb-3">
                     Weeks: {weeks.length}
                   </p>
@@ -158,31 +226,19 @@ const ModuleDetailPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No weeks found for this run</p>
               )}
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {!activeRun && (
+      ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <p className="text-muted-foreground">No active run for this module</p>
-          {user?.IsAdmin && (
-            <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Create a run
-            </Button>
-          )}
+          <p className="text-muted-foreground">No runs found for this module</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Module runs are created automatically when a new academic term is started
+          </p>
         </div>
-      )}
-
-      {user?.IsAdmin && (
-        <ModuleRunForm
-          open={formOpen}
-          onOpenChange={setFormOpen}
-          onSuccess={loadModuleData}
-          moduleId={id!}
-        />
       )}
 
       <Dialog open={!!deleteRunId} onOpenChange={() => setDeleteRunId(null)}>

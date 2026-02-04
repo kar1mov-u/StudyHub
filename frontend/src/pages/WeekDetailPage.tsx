@@ -125,16 +125,20 @@ const WeekDetailPage: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          {activeTab === 'files' ? (
-            <Button onClick={() => setUploadFileDialogOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload File
-            </Button>
-          ) : (
-            <Button onClick={() => setUploadLinkDialogOpen(true)}>
-              <LinkIcon className="h-4 w-4 mr-2" />
-              Add Link
-            </Button>
+          {!user?.IsAdmin && (
+            <>
+              {activeTab === 'files' ? (
+                <Button onClick={() => setUploadFileDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload File
+                </Button>
+              ) : (
+                <Button onClick={() => setUploadLinkDialogOpen(true)}>
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Add Link
+                </Button>
+              )}
+            </>
           )}
         </div>
 

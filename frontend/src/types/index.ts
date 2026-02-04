@@ -25,7 +25,6 @@ export interface ModuleRun {
   ModuleID: string
   Year: number
   Semester: string
-  IsActive: boolean
   CreatedAt: string
 }
 
@@ -51,7 +50,6 @@ export interface AcademicTerm {
   ID: string
   Year: number
   Semester: string
-  IsActive: boolean
 }
 
 // Request DTOs
@@ -61,10 +59,10 @@ export interface CreateModuleRequest {
   department_name: string
 }
 
-export interface CreateModuleRunRequest {
-  year: number
-  semester: string
-  is_active: boolean
+export interface UpdateModuleRequest {
+  code?: string
+  name?: string
+  department_name?: string
 }
 
 export interface CreateAcademicTermRequest {

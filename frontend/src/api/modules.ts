@@ -3,6 +3,7 @@ import type {
   Module,
   ModulePage,
   CreateModuleRequest,
+  UpdateModuleRequest,
   CreateResponse,
 } from '@/types'
 
@@ -23,6 +24,11 @@ export const modulesApi = {
   createModule: async (data: CreateModuleRequest): Promise<CreateResponse> => {
     const response = await apiClient.post<CreateResponse>('/modules', data)
     return response.data
+  },
+
+  // Update an existing module
+  updateModule: async (id: string, data: UpdateModuleRequest): Promise<void> => {
+    await apiClient.patch(`/modules/${id}`, data)
   },
 
   // Delete a module

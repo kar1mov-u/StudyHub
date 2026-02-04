@@ -84,11 +84,9 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Delete("/module-runs/{id}", srv.DeleteModuleRunHandler)
 
 			// Academic Calendar routes
-			priv.Get("/academic-terms", srv.ListAcademicTermsHandler)
-			priv.Get("/academic-terms/active", srv.GetActiveAcademicTermHandler)
-			priv.Post("/academic-terms", srv.CreateAcademicTermHandler)
-			priv.Patch("/academic-terms/{id}/deactivate", srv.DeactivateAcademicTermHandler)
-			priv.Patch("/academic-terms/{id}/activate", srv.ActivateAcademicTermHandler)
+			//do not like how the academic terms are build, i should be able to just get the current one.
+			priv.Get("/academic-terms/current", srv.GetActiveAcademicTermHandler)
+			priv.Post("/academic-terms/new-term", srv.CreateAcademicTermHandler)
 
 			//Resources routes
 			priv.Post("/resources/file/{week_id}", srv.UploadFileHandler)

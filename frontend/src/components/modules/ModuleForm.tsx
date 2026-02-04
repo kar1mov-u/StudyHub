@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,18 +12,22 @@ import {
 } from '@/components/ui/dialog'
 import { modulesApi } from '@/api/modules'
 import { useToast } from '@/components/ui/toast'
-import type { CreateModuleRequest } from '@/types'
+import type { CreateModuleRequest, Module } from '@/types'
 
 interface ModuleFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  mode?: 'create' | 'edit'
+  initialData?: Module
 }
 
 const ModuleForm: React.FC<ModuleFormProps> = ({
   open,
   onOpenChange,
   onSuccess,
+  mode = 'create',
+  initialData,
 }) => {
   const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -34,19 +38,37 @@ const ModuleForm: React.FC<ModuleFormProps> = ({
     department_name: '',
   })
 
+  // Initialize form with initial data when in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        code: initialData.Code,
+        name: initialData.Name,
+        department_name: initialData.DepartmentName,
+      })
+    } else {
+      setFormData({ code: '', name: '', department_name: '' })
+    }
+  }, [mode, initialData, open])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      await modulesApi.createModule(formData)
-      showToast('Module created successfully', 'success')
+      if (mode === 'edit' && initialData) {
+        await modulesApi.updateModule(initialData.ID, formData)
+        showToast('Module updated successfully', 'success')
+      } else {
+        await modulesApi.createModule(formData)
+        showToast('Module created successfully', 'success')
+      }
       onSuccess()
       onOpenChange(false)
       setFormData({ code: '', name: '', department_name: '' })
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : 'Failed to create module',
+        error instanceof Error ? error.message : `Failed to ${mode} module`,
         'error'
       )
     } finally {
@@ -58,9 +80,9 @@ const ModuleForm: React.FC<ModuleFormProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Module</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? 'Edit Module' : 'Create Module'}</DialogTitle>
           <DialogDescription>
-            Add a new module to the system
+            {mode === 'edit' ? 'Update module information' : 'Add a new module to the system'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -111,7 +133,7 @@ const ModuleForm: React.FC<ModuleFormProps> = ({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? (mode === 'edit' ? 'Updating...' : 'Creating...') : (mode === 'edit' ? 'Update' : 'Create')}
             </Button>
           </DialogFooter>
         </form>

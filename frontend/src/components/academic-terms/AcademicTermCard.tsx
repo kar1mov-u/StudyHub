@@ -1,63 +1,40 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Calendar, CheckCircle2, Circle } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import type { AcademicTerm } from '@/types'
 
 interface AcademicTermCardProps {
   term: AcademicTerm
-  onActivate: (id: string) => void
-  onDeactivate: (id: string) => void
 }
 
-const AcademicTermCard: React.FC<AcademicTermCardProps> = ({
-  term,
-  onActivate,
-  onDeactivate,
-}) => {
+const AcademicTermCard: React.FC<AcademicTermCardProps> = ({ term }) => {
   return (
-    <Card className={term.IsActive ? 'border-primary border-2' : ''}>
+    <Card className="border-primary border-2">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-xl capitalize">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Calendar className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-2xl capitalize">
               {term.Semester} {term.Year}
             </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Active academic term
+            </p>
           </div>
-          {term.IsActive ? (
-            <Badge variant="success">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Active
-            </Badge>
-          ) : (
-            <Badge variant="outline">
-              <Circle className="h-3 w-3 mr-1" />
-              Inactive
-            </Badge>
-          )}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-2">
-          {term.IsActive ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onDeactivate(term.ID)}
-            >
-              Deactivate
-            </Button>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => onActivate(term.ID)}
-            >
-              Activate
-            </Button>
-          )}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Semester:</span>
+            <span className="font-medium capitalize">{term.Semester}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Year:</span>
+            <span className="font-medium">{term.Year}</span>
+          </div>
         </div>
       </CardContent>
     </Card>

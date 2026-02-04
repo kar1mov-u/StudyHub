@@ -18,10 +18,11 @@ type CreateUserRequest struct {
 }
 
 type UserDTO struct {
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	IsAdmin   bool   `json:"is_admin"`
+	ID        uuid.UUID `json:"user_id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email"`
+	IsAdmin   bool      `json:"is_admin"`
 }
 
 func (s *HTTPServer) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +82,7 @@ func (s *HTTPServer) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userDto := UserDTO{
+		ID:        user.ID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,
@@ -108,6 +110,7 @@ func (s *HTTPServer) GetMeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userDto := UserDTO{
+		ID:        user.ID,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Email:     user.Email,

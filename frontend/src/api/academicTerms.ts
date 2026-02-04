@@ -6,33 +6,17 @@ import type {
 } from '@/types'
 
 export const academicTermsApi = {
-  // List all academic terms
-  listAcademicTerms: async (): Promise<AcademicTerm[]> => {
-    const response = await apiClient.get<AcademicTerm[]>('/academic-terms')
+  // Get the current academic term
+  getCurrentAcademicTerm: async (): Promise<AcademicTerm> => {
+    const response = await apiClient.get<AcademicTerm>('/academic-terms/current')
     return response.data
   },
 
-  // Get the active academic term
-  getActiveAcademicTerm: async (): Promise<AcademicTerm> => {
-    const response = await apiClient.get<AcademicTerm>('/academic-terms/active')
-    return response.data
-  },
-
-  // Create a new academic term
-  createAcademicTerm: async (
+  // Create a new academic term (creates term + all module runs)
+  createNewTerm: async (
     data: CreateAcademicTermRequest
   ): Promise<CreateResponse> => {
-    const response = await apiClient.post<CreateResponse>('/academic-terms', data)
+    const response = await apiClient.post<CreateResponse>('/academic-terms/new-term', data)
     return response.data
-  },
-
-  // Activate an academic term
-  activateAcademicTerm: async (id: string): Promise<void> => {
-    await apiClient.patch(`/academic-terms/${id}/activate`)
-  },
-
-  // Deactivate an academic term
-  deactivateAcademicTerm: async (id: string): Promise<void> => {
-    await apiClient.patch(`/academic-terms/${id}/deactivate`)
   },
 }

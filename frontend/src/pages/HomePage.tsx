@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
       try {
         setLoading(true)
         const [termData, modulesData] = await Promise.all([
-          academicTermsApi.getActiveAcademicTerm().catch(() => null),
+          academicTermsApi.getCurrentAcademicTerm().catch(() => null),
           modulesApi.listModules(),
         ])
         setActiveTerm(termData)

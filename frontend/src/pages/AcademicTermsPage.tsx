@@ -9,54 +9,33 @@ import type { AcademicTerm } from '@/types'
 
 const AcademicTermsPage: React.FC = () => {
   const { showToast } = useToast()
-  const [terms, setTerms] = useState<AcademicTerm[]>([])
+  const [currentTerm, setCurrentTerm] = useState<AcademicTerm | null>(null)
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
 
-  const loadTerms = async () => {
+  const loadCurrentTerm = async () => {
     try {
       setLoading(true)
-      const data = await academicTermsApi.listAcademicTerms()
-      setTerms(data)
+      const data = await academicTermsApi.getCurrentAcademicTerm()
+      setCurrentTerm(data)
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Failed to load academic terms',
-        'error'
-      )
+      // If no current term exists, that's okay - show empty state
+      if (error instanceof Error && error.message.includes('404')) {
+        setCurrentTerm(null)
+      } else {
+        showToast(
+          error instanceof Error ? error.message : 'Failed to load current academic term',
+          'error'
+        )
+      }
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadTerms()
+    loadCurrentTerm()
   }, [])
-
-  const handleActivate = async (id: string) => {
-    try {
-      await academicTermsApi.activateAcademicTerm(id)
-      showToast('Academic term activated successfully', 'success')
-      loadTerms()
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Failed to activate academic term',
-        'error'
-      )
-    }
-  }
-
-  const handleDeactivate = async (id: string) => {
-    try {
-      await academicTermsApi.deactivateAcademicTerm(id)
-      showToast('Academic term deactivated successfully', 'success')
-      loadTerms()
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Failed to deactivate academic term',
-        'error'
-      )
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -64,12 +43,12 @@ const AcademicTermsPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Academic Terms</h1>
           <p className="text-muted-foreground mt-2">
-            Manage academic terms and set the active term
+            Manage the current academic term and create new semesters
           </p>
         </div>
         <Button onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Create Term
+          Start New Term
         </Button>
       </div>
 
@@ -77,31 +56,35 @@ const AcademicTermsPage: React.FC = () => {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : terms.length === 0 ? (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <p className="text-muted-foreground">No academic terms found</p>
-          <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Create your first term
-          </Button>
+      ) : currentTerm ? (
+        <div>
+          <div className="mb-4 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+            <p className="text-sm font-medium text-primary">
+              Current Academic Term
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This is the active term for all modules
+            </p>
+          </div>
+          <AcademicTermCard term={currentTerm} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {terms.map((term) => (
-            <AcademicTermCard
-              key={term.ID}
-              term={term}
-              onActivate={handleActivate}
-              onDeactivate={handleDeactivate}
-            />
-          ))}
+        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+          <p className="text-muted-foreground">No academic term found</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Create the first academic term to start tracking module runs
+          </p>
+          <Button onClick={() => setFormOpen(true)} className="mt-4" variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Create first term
+          </Button>
         </div>
       )}
 
       <AcademicTermForm
         open={formOpen}
         onOpenChange={setFormOpen}
-        onSuccess={loadTerms}
+        onSuccess={loadCurrentTerm}
       />
     </div>
   )

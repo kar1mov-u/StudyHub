@@ -9,6 +9,7 @@ import ModuleDetailPage from '@/pages/ModuleDetailPage'
 import WeekDetailPage from '@/pages/WeekDetailPage'
 import AcademicTermsPage from '@/pages/AcademicTermsPage'
 import UserProfilePage from '@/pages/UserProfilePage'
+import AdminDashboardPage from '@/pages/AdminDashboardPage'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 
@@ -34,6 +35,7 @@ function App() {
               <Route path="modules/:id" element={<ModuleDetailPage />} />
               <Route path="modules/:moduleId/weeks/:weekId" element={<WeekDetailPage />} />
               <Route path="academic-terms" element={<AcademicTermsPage />} />
+              <Route path="admin" element={<AdminDashboardPage />} />
               <Route path="users/:userId" element={<UserProfilePage />} />
             </Route>
 

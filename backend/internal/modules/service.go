@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,9 +18,8 @@ type ModuleRepository interface {
 type ModuleRunRepository interface {
 	GetByID(context.Context, uuid.UUID) (ModuleRun, error)
 	Create(context.Context, ModuleRun) error
-	GetActiveByModuleID(context.Context, uuid.UUID) (ModuleRun, error)
+	GetLatestModuleRun(context.Context, uuid.UUID) (ModuleRun, error)
 	ListByModuleID(context.Context, uuid.UUID) ([]ModuleRun, error)
-	DeactivateByModuleID(context.Context, uuid.UUID) error
 	Delete(context.Context, uuid.UUID) error
 }
 
@@ -33,8 +33,7 @@ type AcademicCalendarRepository interface {
 	GetActive(context.Context) (AcademicTerm, error)
 	Create(context.Context, AcademicTerm) error
 	List(context.Context) ([]AcademicTerm, error)
-	DeActivate(context.Context, uuid.UUID) error
-	Activate(context.Context, uuid.UUID) error
+	DeActivate(ctx context.Context) error
 }
 
 type ModuleService struct {
@@ -66,7 +65,7 @@ func (s *ModuleService) GetModuleFull(ctx context.Context, id uuid.UUID) (Module
 		return ModulePage{}, err
 	}
 
-	moduleRun, err := s.moduleRunRepo.GetActiveByModuleID(ctx, id)
+	moduleRun, err := s.moduleRunRepo.GetLatestModuleRun(ctx, id)
 	if err != nil {
 		return ModulePage{}, err
 	}
@@ -103,7 +102,6 @@ func (s *ModuleService) CreateModule(ctx context.Context, module Module) error {
 		ModuleID:  module.ID,
 		Year:      term.Year,
 		Semester:  term.Semester,
-		IsActive:  true,
 		CreatedAt: time.Now(),
 	}
 
@@ -125,7 +123,11 @@ func (s *ModuleService) ListModuleRuns(ctx context.Context, moduleID uuid.UUID) 
 }
 
 func (s *ModuleService) CreateModuleRun(ctx context.Context, moduleRun ModuleRun) error {
-	return s.moduleRunRepo.Create(ctx, moduleRun)
+	err := s.moduleRunRepo.Create(ctx, moduleRun)
+	if err != nil {
+		return err
+	}
+	return s.weekRepo.CreateWeeksForMoudleRun(ctx, moduleRun.ID)
 }
 
 func (s *ModuleService) GetModuleRun(ctx context.Context, id uuid.UUID) (ModuleRunPage, error) {
@@ -159,14 +161,42 @@ func (s *ModuleService) ListAcademicTerms(ctx context.Context) ([]AcademicTerm, 
 	return s.calendarRepo.List(ctx)
 }
 
-func (s *ModuleService) CreateAcademicTerm(ctx context.Context, term AcademicTerm) error {
-	return s.calendarRepo.Create(ctx, term)
-}
+func (s *ModuleService) StartNewTerm(ctx context.Context, term AcademicTerm) error {
+	//1 deactive all the other terms
+	err := s.calendarRepo.DeActivate(ctx)
+	if err != nil {
+		return err
+	}
 
-func (s *ModuleService) DeactivateAcademicTerm(ctx context.Context, id uuid.UUID) error {
-	return s.calendarRepo.DeActivate(ctx, id)
-}
+	//2 create new academic term
+	err = s.calendarRepo.Create(ctx, term)
+	if err != nil {
+		return err
+	}
+	//3 create moduleRun for each module
+	//get the list of modules
+	modules, err := s.moduleRepo.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, module := range modules {
+		moduleRun := ModuleRun{
+			ID:        uuid.New(),
+			ModuleID:  module.ID,
+			Year:      term.Year,
+			Semester:  term.Semester,
+			CreatedAt: time.Now(),
+		}
+		err = s.moduleRunRepo.Create(ctx, moduleRun)
+		if err != nil {
+			//if we cant create the 1 module, should still continue the processs
+			slog.Error("failed to create the moduleRun in NewTerm", "err", err)
+		}
+		err = s.weekRepo.CreateWeeksForMoudleRun(ctx, moduleRun.ID)
+		if err != nil {
+			slog.Error("failed to create the weeks in NewTerm", "err", err)
+		}
 
-func (s *ModuleService) ActivateAcademicTerm(ctx context.Context, id uuid.UUID) error {
-	return s.calendarRepo.Activate(ctx, id)
+	}
+	return nil
 }
