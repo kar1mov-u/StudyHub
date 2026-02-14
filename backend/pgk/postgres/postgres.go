@@ -7,8 +7,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//shared lib for code to connect for the Postgres
-
 // should accept Config.Postgres and based on this connect to the database
 
 // connection string-postgresql://postgres:postgres@localhost:5432/studyhub?sslmode=disable

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"StudyHub/backend/internal/auth"
-	"StudyHub/backend/internal/config"
-	"StudyHub/backend/internal/http"
-	"StudyHub/backend/internal/modules"
-	"StudyHub/backend/internal/resources"
-	"StudyHub/backend/internal/users"
-	"StudyHub/backend/pgk/postgres"
+	"StudyHub/internal/auth"
+	"StudyHub/internal/config"
+	"StudyHub/internal/http"
+	"StudyHub/internal/modules"
+	"StudyHub/internal/resources"
+	"StudyHub/internal/users"
+	"StudyHub/pgk/postgres"
 	"context"
 	"fmt"
 	"log"

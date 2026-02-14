@@ -1,10 +1,10 @@
 package http
 
 import (
-	"StudyHub/backend/internal/auth"
-	"StudyHub/backend/internal/modules"
-	"StudyHub/backend/internal/resources"
-	"StudyHub/backend/internal/users"
+	"StudyHub/internal/auth"
+	"StudyHub/internal/modules"
+	"StudyHub/internal/resources"
+	"StudyHub/internal/users"
 	"context"
 	"encoding/json"
 	"log/slog"

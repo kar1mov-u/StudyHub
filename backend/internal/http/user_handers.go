@@ -1,7 +1,7 @@
 package http
 
 import (
-	"StudyHub/backend/internal/users"
+	"StudyHub/internal/users"
 	"encoding/json"
 	"log/slog"
 	"net/http"

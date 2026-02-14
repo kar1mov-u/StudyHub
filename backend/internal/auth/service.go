@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"StudyHub/backend/internal/users"
+	"StudyHub/internal/users"
 	"context"
 	"fmt"
 	"log/slog"

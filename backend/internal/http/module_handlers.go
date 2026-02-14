@@ -1,7 +1,7 @@
 package http
 
 import (
-	"StudyHub/backend/internal/modules"
+	"StudyHub/internal/modules"
 	"encoding/json"
 	"net/http"
 	"time"

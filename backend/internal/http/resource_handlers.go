@@ -1,7 +1,7 @@
 package http
 
 import (
-	"StudyHub/backend/internal/resources"
+	"StudyHub/internal/resources"
 	"context"
 	"encoding/json"
 	"errors"

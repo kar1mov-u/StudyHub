@@ -1,0 +1,67 @@
+services:
+  backend:
+    build: backend/
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_started
+    networks:
+      - studyhub_net
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - JWT_KEY=${JWT_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_S3_URL=${AWS_S3_URL}
+    ports:
+      - "8080:8080"
+
+  db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      
+    ports:
+      - "5432:5432"
+    networks:
+      - studyhub_net
+    volumes:
+      - study_hub_db_test:/var/lib/postgresql
+
+
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    networks:
+      - studyhub_net
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+       - -path=/migrations/
+       - -database=postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}?sslmode=disable
+       - up
+
+
+volumes:
+  study_hub_db_test:
+
+networks:
+  studyhub_net:
+    driver: bridge
