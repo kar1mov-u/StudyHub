@@ -59,6 +59,16 @@ services:
        - up
 
 
+  frontend:
+    build: frontend/
+    ports:
+      - "80:80"
+    networks:
+      - studyhub_net
+    depends_on:
+      backend:
+        condition: service_started
+
 volumes:
   study_hub_db_test:
 
