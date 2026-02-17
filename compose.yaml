@@ -1,3 +1,4 @@
+# this is compose file for the prod
 services:
   backend:
     build: backend/
@@ -22,10 +23,6 @@ services:
       - AWS_S3_URL=${AWS_S3_URL}
     ports:
       - "8080:8080"
-    volumes:
-      - ./backend:/app
-    working_dir: /app
-    command: go run cmd/main.go
 
   db:
     image: postgres:latest
@@ -64,17 +61,11 @@ services:
 
 
   frontend:
-    build: 
-      context: frontend/
-      target: development 
+    build: frontend/
     ports:
       - "80:80" 
     networks:
       - studyhub_net
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules 
-    command: npm run dev -- --host
     depends_on:
       backend:
         condition: service_started
