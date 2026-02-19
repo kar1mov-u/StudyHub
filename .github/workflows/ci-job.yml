@@ -1,0 +1,108 @@
+name: Build and push 
+on:
+    push:
+        branches: ["main"]
+
+jobs:
+    changes:
+        runs-on: ubuntu-latest
+        permissions: 
+            contents: read
+        outputs:
+            backend: ${{ steps.filter.outputs.backend }}
+            frontend: ${{ steps.filter.outputs.frontend }}
+            migrations: ${{ steps.filter.outputs.migrations }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dorny/paths-filter@v3
+              id: filter
+              with: 
+                filters: |
+                    backend:
+                        - 'backend/**'
+                    frontend:
+                        - 'frontend/**'
+                    migrations:
+                        - 'migrations/**' 
+    
+    build-backend:
+        needs: changes
+        if: ${{needs.changes.outputs.backend=='true'}}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Log into GHCR
+              uses: docker/login-action@v3
+              with:
+                registry: ghcr.io
+                username: ${{github.actor}}
+                password: ${{secrets.TOKEN_GITHUB}}
+            
+            - name: Build and push
+              uses: docker/build-push-action@v5
+              with:
+                context: ./backend
+                push: true
+                platforms: linux/amd64
+                tags: |
+                    ghcr.io/${{github.repository.owner}}/studyhub-backend:latest
+                    ghcr.io/${{github.repository.owner}}/studyhub-backend:${{ github.sha }}
+
+    build-frontend:
+        needs: changes
+        if: ${{needs.changes.outputs.frontend=='true'}}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Log into GHCR
+              uses: docker/login-action@v3
+              with:
+                registry: ghcr.io
+                username: ${{github.actor}}
+                password: ${{secrets.TOKEN_GITHUB}}
+            
+            - name: Build and push
+              uses: docker/build-push-action@v5
+              with:
+                context: ./frontend
+                push: true
+                platforms: linux/amd64
+                tags: |
+                    ghcr.io/${{github.repository.owner}}/studyhub-frontend:latest
+                    ghcr.io/${{github.repository.owner}}/studyhub-frontend:${{ github.sha }}
+
+    build-migrations:
+        needs: changes
+        if: ${{needs.changes.outputs.migrations=='true'}}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Log into GHCR
+              uses: docker/login-action@v3
+              with:
+                registry: ghcr.io
+                username: ${{github.actor}}
+                password: ${{secrets.TOKEN_GITHUB}}
+            
+            - name: Build and push
+              uses: docker/build-push-action@v5
+              with:
+                context: ./migrations
+                push: true
+                platforms: linux/amd64
+                tags: |
+                    ghcr.io/${{github.repository.owner}}/studyhub-migrations:latest
+                    ghcr.io/${{github.repository.owner}}/studyhub-migrations:${{ github.sha }}
+
