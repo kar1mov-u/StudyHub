@@ -112,19 +112,20 @@ jobs:
             always() && 
             !contains(needs.*.result, 'failure') && 
             !contains(needs.*.result, 'cancelled')
-        runs-on: ubuntu_latest
+        runs-on: ubuntu-latest  # Fixed hyphen here
         steps:
             - name: Deploy to EC2
               uses: appleboy/ssh-action@v1.0.3
               with: 
-                host: ${{secrets.EC2_HOST}}
-                username: ${{secrets.EC2_USERNAME}}
-                key: ${{secrets.SSH_KEY}} 
-                scripts: |
-                 cd ~/studyhub
-                 echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u kar1mov-u --password-stdin
-                 docker compose pull
-                 docker compose up -d
-                 docker image prune -f
+                host: ${{ secrets.EC2_HOST }}
+                username: ${{ secrets.EC2_USERNAME }}
+                key: ${{ secrets.SSH_KEY }} 
+                script: |  # Removed the 's' here
+                  cd ~/studyhub
+                  # Use the built-in GITHUB_TOKEN to login to the registry on the EC2
+                  echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u kar1mov-u --password-stdin
+                  docker compose pull
+                  docker compose up -d
+                  docker image prune -f
     
     
