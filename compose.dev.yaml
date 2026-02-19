@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: backend/
+      target: development
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    command: go run cmd/main.go
+
+
+
+
+  frontend:
+    build: 
+      context: frontend/
+      target: development 
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules 
+    command: npm run dev -- --host

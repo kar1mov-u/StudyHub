@@ -1,6 +1,9 @@
+# this is compose file for the prod
 services:
   backend:
     build: backend/
+    # image: ghcr.io/kar1mov-u/study_hub_backend:latest
+
     depends_on:
       db:
         condition: service_healthy
@@ -45,9 +48,8 @@ services:
 
 
   migrate:
-    image: migrate/migrate
-    volumes:
-      - ./migrations:/migrations
+    build: ./migrations 
+    # image: ghcr.io/kar1mov-u/study_hub-migrate:latest
     networks:
       - studyhub_net
     depends_on:
@@ -61,8 +63,10 @@ services:
 
   frontend:
     build: frontend/
+    # image: ghcr.io/kar1mov-u/study_hub_front_end:latest
+
     ports:
-      - "80:80"
+      - "80:80" 
     networks:
       - studyhub_net
     depends_on:

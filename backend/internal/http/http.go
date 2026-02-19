@@ -56,6 +56,9 @@ func (srv *HTTPServer) registerRoutes() {
 		r.Use(middleware.Logger)
 		//auth routes
 		r.Group(func(pub chi.Router) {
+			pub.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("dev setup is not working"))
+			})
 			pub.Post("/auth/login", srv.LoginHandler)
 			pub.Post("/users", srv.CreateUserHandler)
 
