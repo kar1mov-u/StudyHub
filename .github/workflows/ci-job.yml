@@ -105,4 +105,23 @@ jobs:
                 tags: |
                     ghcr.io/kar1mov-u/studyhub-migrations:latest
                     ghcr.io/kar1mov-u/studyhub-migrations:${{ github.sha }}
-
+    
+    deploy:
+        needs: [build-backend, build-frontend, build-migrations]
+        if: github.event_name== 'push'
+        runs-on: ubuntu_latest
+        steps:
+            - name: Deploy to EC2
+              uses: appleboy/ssh-action@v1.0.3
+              with: 
+                host: ${{secrets.EC2_HOST}}
+                username: ${{secrets.EC2_USERNAME}}
+                key: ${{secrets.SSH_KEY}} 
+                scripts: |
+                 cd ~/studyhub
+                 echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u kar1mov-u --password-stdin
+                 docker compose pull
+                 docker compose up -d
+                 docker image prune -f
+    
+    
