@@ -49,8 +49,8 @@ jobs:
                 push: true
                 platforms: linux/amd64
                 tags: |
-                    ghcr.io/${{github.repository.owner}}/studyhub-backend:latest
-                    ghcr.io/${{github.repository.owner}}/studyhub-backend:${{ github.sha }}
+                    ghcr.io/kar1mov-u/studyhub-backend:latest
+                    ghcr.io/kar1mov-u/studyhub-backend:${{ github.sha }}
 
     build-frontend:
         needs: changes
@@ -76,8 +76,8 @@ jobs:
                 push: true
                 platforms: linux/amd64
                 tags: |
-                    ghcr.io/${{github.repository.owner}}/studyhub-frontend:latest
-                    ghcr.io/${{github.repository.owner}}/studyhub-frontend:${{ github.sha }}
+                    ghcr.io/kar1mov-u/studyhub-frontend:latest
+                    ghcr.io/kar1mov-u/studyhub-frontend:${{ github.sha }}
 
     build-migrations:
         needs: changes
@@ -103,6 +103,6 @@ jobs:
                 push: true
                 platforms: linux/amd64
                 tags: |
-                    ghcr.io/${{github.repository.owner}}/studyhub-migrations:latest
-                    ghcr.io/${{github.repository.owner}}/studyhub-migrations:${{ github.sha }}
+                    ghcr.io/kar1mov-u/studyhub-migrations:latest
+                    ghcr.io/kar1mov-u/studyhub-migrations:${{ github.sha }}
 
