@@ -1,5 +1,8 @@
 services:
   backend:
+    build:
+      context: backend/
+      target: development
     volumes:
       - ./backend:/app
     working_dir: /app
