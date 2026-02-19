@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS storage_objects(
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
 CREATE TABLE IF NOT EXISTS resources(
     id UUID PRIMARY KEY, 
     type TEXT NOT NULL, 
