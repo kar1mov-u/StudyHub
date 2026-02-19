@@ -15,7 +15,7 @@ import (
 
 func main() {
 	cfg := config.Load()
-	log.Println("staring the v1.1  ...")
+	log.Println("staring the v1.2  ...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
