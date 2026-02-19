@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS resources(
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
 CREATE TABLE IF NOT EXISTS resource_owners (
     resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
