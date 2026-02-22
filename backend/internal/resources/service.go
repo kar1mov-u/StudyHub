@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrResourceExists = errors.New("resource already exists")
+
 type ResourceRepository interface {
 	CreateFileResource(ctx context.Context, resource Resource) error
 	CreateLinkResource(ctx context.Context, resource Resource) error
@@ -27,15 +29,18 @@ type ResourceRepository interface {
 	DeleteResource(ctx context.Context, userID, resourceID uuid.UUID) error
 }
 
-var ErrResourceExists = errors.New("resource already exists")
+type Queue interface {
+	Publish(ctx context.Context, objectID uuid.UUID) error
+}
 
 type ResourceService struct {
 	resourceRepo ResourceRepository
 	filesStorage FileStorage
+	queue        Queue
 }
 
-func NewResourceService(repo ResourceRepository, storage FileStorage) *ResourceService {
-	return &ResourceService{resourceRepo: repo, filesStorage: storage}
+func NewResourceService(repo ResourceRepository, storage FileStorage, queue Queue) *ResourceService {
+	return &ResourceService{resourceRepo: repo, filesStorage: storage, queue: queue}
 }
 
 func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, size int64, resource Resource) error {
@@ -81,6 +86,12 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 		if err != nil {
 			return err
 		}
+		//here should upload to the queue
+		err = s.queue.Publish(ctx, storageObject.ID)
+		if err != nil {
+			slog.Error("failed to publish message", "err", err.Error())
+		}
+		slog.Info("published message")
 	}
 
 	//check if it exists in the week, to prevent resource deduplication

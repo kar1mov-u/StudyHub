@@ -5,7 +5,9 @@ import (
 	"StudyHub/internal/config"
 	"StudyHub/internal/http"
 	"StudyHub/internal/modules"
+	"StudyHub/internal/rabbitmq"
 	"StudyHub/internal/resources"
+	studycontent "StudyHub/internal/study_content"
 	"StudyHub/internal/users"
 	"StudyHub/pgk/postgres"
 	"context"
@@ -33,13 +35,16 @@ func main() {
 
 	s3Storage := resources.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
 
+	rbmq := rabbitmq.New(cfg.RBMQUser, cfg.RBMQPass, cfg.RBMQHost)
+
 	//createing srvs
 	moduleSrv := modules.NewModuleService(moduleRepo, weeksRepo, moduleRunRepo, academicCalRepo)
 	userSrv := users.NewUserService(userRepo)
 	authSrv := auth.NewAuthSerivce("", userRepo)
-	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage)
+	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage, rbmq)
+	contentSrv := studycontent.NewStudyContentService(rbmq)
 
-	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, ":8080")
+	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, ":8080")
 
 	log.Println("listening...")
 	httpServer.Start()

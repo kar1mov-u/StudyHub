@@ -4,6 +4,7 @@ import (
 	"StudyHub/internal/auth"
 	"StudyHub/internal/modules"
 	"StudyHub/internal/resources"
+	studycontent "StudyHub/internal/study_content"
 	"StudyHub/internal/users"
 	"context"
 	"encoding/json"
@@ -21,11 +22,12 @@ type HTTPServer struct {
 	authSrv     *auth.AuthService
 	userSrv     *users.UserService
 	resourceSrv *resources.ResourceService
+	contentSrv  *studycontent.StudyContentService
 	httpServer  *http.Server
 	router      *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *studycontent.StudyContentService, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
 		moduleSrv:   moduleSrv,

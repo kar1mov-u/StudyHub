@@ -60,9 +60,22 @@ services:
     depends_on:
       backend:
         condition: service_started
+    
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - studyhub_net
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/mnesia
 
 volumes:
   study_hub_db_test:
+  rabbitmq_data:
+
 
 networks:
   studyhub_net:
