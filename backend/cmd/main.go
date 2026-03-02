@@ -2,6 +2,7 @@ package main
 
 import (
 	"StudyHub/internal/auth"
+	"StudyHub/internal/aws"
 	"StudyHub/internal/config"
 	"StudyHub/internal/http"
 	"StudyHub/internal/modules"
@@ -33,7 +34,7 @@ func main() {
 	userRepo := users.NewUserRepositoryPostgres(pool)
 	resourceRepo := resources.NewResourceRepositoryPostgres(pool)
 
-	s3Storage := resources.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
+	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
 
 	rbmq := rabbitmq.New(cfg.RBMQUser, cfg.RBMQPass, cfg.RBMQHost)
 
@@ -42,7 +43,7 @@ func main() {
 	userSrv := users.NewUserService(userRepo)
 	authSrv := auth.NewAuthSerivce("", userRepo)
 	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage, rbmq)
-	contentSrv := studycontent.NewStudyContentService(rbmq)
+	contentSrv := studycontent.NewStudyContentService(rbmq, s3Storage)
 
 	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, ":8080")
 

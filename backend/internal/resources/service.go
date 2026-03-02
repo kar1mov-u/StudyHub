@@ -25,12 +25,17 @@ type ResourceRepository interface {
 	LinkExistsInWeek(ctx context.Context, resource Resource) (bool, error)
 	FileExistsInWeek(ctx context.Context, hash string, weekID uuid.UUID) (bool, error)
 	ListOrphanObjects(ctx context.Context) ([]uuid.UUID, error)
-	DeleteStorageObjecst(ctx context.Context, ids []uuid.UUID) error
+	DeleteStorageObjects(ctx context.Context, ids []uuid.UUID) error
 	DeleteResource(ctx context.Context, userID, resourceID uuid.UUID) error
 }
 
 type Queue interface {
 	Publish(ctx context.Context, objectID uuid.UUID) error
+}
+type FileStorage interface {
+	UploadObject(ctx context.Context, filename string, size int64, body io.Reader) (string, error)
+	DeleteObject(ctx context.Context, filename string) error
+	CreatePresidedURL(ctx context.Context, key string) (string, error)
 }
 
 type ResourceService struct {
@@ -146,7 +151,7 @@ func (s *ResourceService) ListResourceForUser(ctx context.Context, userID uuid.U
 
 func (s *ResourceService) GetResource(ctx context.Context, id uuid.UUID) (string, error) {
 	//first get the key for the object
-	return s.filesStorage.CreatePresingedURL(ctx, id.String())
+	return s.filesStorage.CreatePresidedURL(ctx, id.String())
 
 }
 
@@ -166,7 +171,7 @@ func (s *ResourceService) CleanOrphanObjects(ctx context.Context) ([]uuid.UUID, 
 			deletedIds = append(deletedIds, id)
 		}
 	}
-	err = s.resourceRepo.DeleteStorageObjecst(ctx, deletedIds)
+	err = s.resourceRepo.DeleteStorageObjects(ctx, deletedIds)
 	if err != nil {
 		slog.Error("failed to delete storage_objects from DB, but deleted from the storage", "err", err, "ids", ids)
 		return []uuid.UUID{}, err

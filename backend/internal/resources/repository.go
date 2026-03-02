@@ -172,7 +172,7 @@ func (r *ResourceRepositoryPostgres) ListOrphanObjects(ctx context.Context) ([]u
 	return ids, nil
 }
 
-func (r *ResourceRepositoryPostgres) DeleteStorageObjecst(ctx context.Context, ids []uuid.UUID) error {
+func (r *ResourceRepositoryPostgres) DeleteStorageObjects(ctx context.Context, ids []uuid.UUID) error {
 	batch := pgx.Batch{}
 	query := `DELETE FROM storage_objects WHERE id=$1`
 	for _, id := range ids {
