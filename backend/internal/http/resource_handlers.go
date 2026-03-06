@@ -26,7 +26,6 @@ func (s *HTTPServer) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// r.Body = http.MaxBytesReader(w, r.Body, 100<<20)
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {

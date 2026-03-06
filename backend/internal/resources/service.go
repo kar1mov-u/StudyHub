@@ -53,13 +53,15 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 
 	//use UUID for object key in AWS
 	storageObjectID := uuid.New()
-	//teeReader to read the file stream to both hahser and the cloud storage
+	//every byte written to hasher from body, will be available to read in the tr also
 	tr := io.TeeReader(body, hasher)
 
+	//save object in the cloud
 	storageObjectUrl, err := s.filesStorage.UploadObject(ctx, storageObjectID.String(), size, tr)
 	if err != nil {
 		return err
 	}
+
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	objectID, exists, err := s.resourceRepo.ObjectExists(ctx, hash)
 	if err != nil {
@@ -72,7 +74,7 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 		//assign the ID returned from the DB, instead of ID in the request
 		resource.ObjectID = &objectID
 
-		// in the backgound delete the object from the storage
+		// in the background delete the object from the storage
 		go func() {
 			err = s.filesStorage.DeleteObject(context.TODO(), storageObjectID.String())
 			if err != nil {

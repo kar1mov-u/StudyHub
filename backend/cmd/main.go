@@ -4,6 +4,7 @@ import (
 	"StudyHub/internal/auth"
 	"StudyHub/internal/aws"
 	"StudyHub/internal/config"
+	"StudyHub/internal/gemini"
 	"StudyHub/internal/http"
 	"StudyHub/internal/modules"
 	"StudyHub/internal/rabbitmq"
@@ -35,6 +36,7 @@ func main() {
 	resourceRepo := resources.NewResourceRepositoryPostgres(pool)
 
 	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
+	geminiClient := gemini.NewGeminiClient(cfg.GeminiKey)
 
 	rbmq := rabbitmq.New(cfg.RBMQUser, cfg.RBMQPass, cfg.RBMQHost)
 
@@ -43,7 +45,7 @@ func main() {
 	userSrv := users.NewUserService(userRepo)
 	authSrv := auth.NewAuthSerivce("", userRepo)
 	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage, rbmq)
-	contentSrv := studycontent.NewStudyContentService(rbmq, s3Storage)
+	contentSrv := studycontent.NewStudyContentService(rbmq, s3Storage, geminiClient)
 
 	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, ":8080")
 

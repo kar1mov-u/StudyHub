@@ -19,6 +19,7 @@ type Config struct {
 	JwtKey     string `env:"JWT_KEY"`
 	BucketName string `env:"AWS_S3_BUCKET"`
 	AWS_S3_URL string `env:"AWS_S3_URL"`
+	GeminiKey  string `env:"GEMINI_API_KEY"`
 }
 
 func Load() Config {

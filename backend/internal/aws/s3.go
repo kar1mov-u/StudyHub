@@ -71,8 +71,6 @@ func (s *S3Storage) DeleteObject(ctx context.Context, key string) error {
 	return err
 }
 
-// this method should get the file from the s3 and give it as a stream?
-
 func (s *S3Storage) GetObject(ctx context.Context, key string) (io.ReadCloser, error) {
 	result, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucketName),
@@ -90,6 +88,11 @@ func (s *S3Storage) GetObject(ctx context.Context, key string) (io.ReadCloser, e
 	}
 	return result.Body, nil
 }
+
+func (s *S3Storage) DownloadObject(ctx context.Context, objectID string) (string, error) {
+	return "", nil
+}
+
 func (s *S3Storage) CreatePresidedURL(ctx context.Context, key string) (string, error) {
 	request, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucketName),

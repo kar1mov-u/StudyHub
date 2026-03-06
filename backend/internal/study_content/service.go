@@ -16,6 +16,10 @@ type FileStorage interface {
 	GetObject(ctx context.Context, objectID string) (io.ReadCloser, error)
 }
 
+type AI interface {
+	Generate(ctx context.Context, file io.ReadCloser) (string, error)
+}
+
 type StudyContentRepository interface {
 }
 
@@ -24,12 +28,14 @@ type StudyContentService struct {
 	queue             Queue
 	delivery          chan amqp.Delivery
 	fileStorage       FileStorage
+	ai                AI
 }
 
-func NewStudyContentService(q Queue, fileStorage FileStorage) *StudyContentService {
+func NewStudyContentService(q Queue, fileStorage FileStorage, ai AI) *StudyContentService {
 	s := &StudyContentService{
 		queue:       q,
 		fileStorage: fileStorage,
+		ai:          ai,
 		delivery:    q.Consume(),
 	}
 	s.startWorkers()
@@ -48,7 +54,8 @@ func (s *StudyContentService) worker() {
 	for msg := range s.delivery {
 		key := string(msg.Body)
 		slog.Info("started on job with object id", "ID", string(msg.Body))
-		//get the file from the s3
+
+		//Download file to the disc
 		file, err := s.fileStorage.GetObject(context.Background(), key)
 		if err != nil {
 			slog.Error("error getting file from storage", "err", err)
@@ -57,7 +64,9 @@ func (s *StudyContentService) worker() {
 		}
 		defer file.Close()
 
-		//send the file to the a
+		result, err := s.ai.Generate(context.Background(), file)
+		slog.Info("finished job ", " object id :", key, "result: ", result)
+		//send the file to the LLM api
 
 		//save to DB
 		msg.Ack(true)
