@@ -2,9 +2,12 @@ package studycontent
 
 import (
 	"context"
+	"encoding/json"
 	"io"
+	"log"
 	"log/slog"
 
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -17,7 +20,7 @@ type FileStorage interface {
 }
 
 type AI interface {
-	Generate(ctx context.Context, file io.ReadCloser) (string, error)
+	GenerateFlashCards(ctx context.Context, file io.ReadCloser) (string, error)
 }
 
 type StudyContentRepository interface {
@@ -50,26 +53,49 @@ func (s *StudyContentService) startWorkers() {
 }
 
 func (s *StudyContentService) worker() {
-	//workers will listen to the channel and consume the jobs
 	for msg := range s.delivery {
+
 		key := string(msg.Body)
 		slog.Info("started on job with object id", "ID", string(msg.Body))
 
-		//Download file to the disc
 		file, err := s.fileStorage.GetObject(context.Background(), key)
 		if err != nil {
 			slog.Error("error getting file from storage", "err", err)
 			continue
-			//later may implement dead later queue
 		}
-		defer file.Close()
 
-		result, err := s.ai.Generate(context.Background(), file)
+		result, err := s.ai.GenerateFlashCards(context.Background(), file)
+		if err != nil {
+			slog.Error("failed to generate content", "error: ", err)
+			continue
+		}
+		flashcards, err := cleanupResult(result, string(msg.Body))
+		if err != nil {
+			slog.Error("failed to clenup flashcards", "error: ", err)
+			continue
+		}
+
+		//save to the DB
+		//design the DB schema
+
+		log.Println(flashcards)
+
 		slog.Info("finished job ", " object id :", key, "result: ", result)
-		//send the file to the LLM api
 
-		//save to DB
-		msg.Ack(true)
 	}
 	slog.Info("worker exiting")
+}
+
+func cleanupResult(data, id string) ([]Flashcard, error) {
+	var res []Flashcard
+	err := json.Unmarshal([]byte(data), &res)
+	if err != nil {
+		return []Flashcard{}, err
+	}
+	uuid, _ := uuid.Parse(id)
+	for i := range res {
+		res[i].ObjectID = &uuid
+	}
+
+	return res, nil
 }
