@@ -1,4 +1,4 @@
-package resources
+package aws
 
 import (
 	"context"
@@ -15,12 +15,6 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/joho/godotenv"
 )
-
-type FileStorage interface {
-	UploadObject(ctx context.Context, filename string, size int64, body io.Reader) (string, error)
-	DeleteObject(ctx context.Context, filename string) error
-	CreatePresingedURL(ctx context.Context, key string) (string, error)
-}
 
 type S3Storage struct {
 	s3Client   *s3.Client
@@ -77,7 +71,29 @@ func (s *S3Storage) DeleteObject(ctx context.Context, key string) error {
 	return err
 }
 
-func (s *S3Storage) CreatePresingedURL(ctx context.Context, key string) (string, error) {
+func (s *S3Storage) GetObject(ctx context.Context, key string) (io.ReadCloser, error) {
+	result, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		var noKey *types.NoSuchKey
+		if errors.As(err, &noKey) {
+			log.Printf("Can't get object %s from bucket %s. No such key exists.\n", key, s.bucketName)
+			err = noKey
+		} else {
+			log.Printf("Couldn't get object %v:%v. Here's why: %v\n", s.bucketName, key, err)
+		}
+		return nil, err
+	}
+	return result.Body, nil
+}
+
+func (s *S3Storage) DownloadObject(ctx context.Context, objectID string) (string, error) {
+	return "", nil
+}
+
+func (s *S3Storage) CreatePresidedURL(ctx context.Context, key string) (string, error) {
 	request, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(key),

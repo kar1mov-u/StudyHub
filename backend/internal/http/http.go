@@ -2,6 +2,7 @@ package http
 
 import (
 	"StudyHub/internal/auth"
+	"StudyHub/internal/content"
 	"StudyHub/internal/modules"
 	"StudyHub/internal/resources"
 	"StudyHub/internal/users"
@@ -21,11 +22,12 @@ type HTTPServer struct {
 	authSrv     *auth.AuthService
 	userSrv     *users.UserService
 	resourceSrv *resources.ResourceService
+	contentSrv  *content.ContentService
 	httpServer  *http.Server
 	router      *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
 		moduleSrv:   moduleSrv,
@@ -33,6 +35,7 @@ func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService,
 		authSrv:     authSrv,
 		resourceSrv: resSrv,
 		router:      router,
+		contentSrv:  cntSrv,
 		httpServer: &http.Server{
 			Addr:    port,
 			Handler: router,
@@ -98,6 +101,9 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Get("/resources/{id}", srv.GetResourceHandler)
 			priv.Get("/resources/weeks/{week_id}", srv.ListResourcesForWeekHandler)
 			priv.Get("/resources/users/{user_id}", srv.ListResourcesForUserHandler)
+
+			//content routes
+			priv.Post("/conents/objects", srv.ListCardsFromObjects)
 
 			//interanl processes
 		})

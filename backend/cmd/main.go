@@ -2,9 +2,13 @@ package main
 
 import (
 	"StudyHub/internal/auth"
+	"StudyHub/internal/aws"
 	"StudyHub/internal/config"
+	"StudyHub/internal/content"
+	"StudyHub/internal/gemini"
 	"StudyHub/internal/http"
 	"StudyHub/internal/modules"
+	"StudyHub/internal/rabbitmq"
 	"StudyHub/internal/resources"
 	"StudyHub/internal/users"
 	"StudyHub/pgk/postgres"
@@ -30,16 +34,21 @@ func main() {
 	academicCalRepo := modules.NewAcademicCalendarRepositoryPostgres(pool)
 	userRepo := users.NewUserRepositoryPostgres(pool)
 	resourceRepo := resources.NewResourceRepositoryPostgres(pool)
+	contentRepo := content.NewContentRepositoryPostgres(pool)
 
-	s3Storage := resources.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
+	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
+	geminiClient := gemini.NewGeminiClient(cfg.GeminiKey)
+
+	rbmq := rabbitmq.New(cfg.RBMQUser, cfg.RBMQPass, cfg.RBMQHost)
 
 	//createing srvs
 	moduleSrv := modules.NewModuleService(moduleRepo, weeksRepo, moduleRunRepo, academicCalRepo)
 	userSrv := users.NewUserService(userRepo)
 	authSrv := auth.NewAuthSerivce("", userRepo)
-	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage)
+	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage, rbmq)
+	contentSrv := content.NewContentService(contentRepo, rbmq, s3Storage, geminiClient)
 
-	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, ":8080")
+	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, ":8080")
 
 	log.Println("listening...")
 	httpServer.Start()

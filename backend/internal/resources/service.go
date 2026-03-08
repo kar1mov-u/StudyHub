@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrResourceExists = errors.New("resource already exists")
+
 type ResourceRepository interface {
 	CreateFileResource(ctx context.Context, resource Resource) error
 	CreateLinkResource(ctx context.Context, resource Resource) error
@@ -23,19 +25,27 @@ type ResourceRepository interface {
 	LinkExistsInWeek(ctx context.Context, resource Resource) (bool, error)
 	FileExistsInWeek(ctx context.Context, hash string, weekID uuid.UUID) (bool, error)
 	ListOrphanObjects(ctx context.Context) ([]uuid.UUID, error)
-	DeleteStorageObjecst(ctx context.Context, ids []uuid.UUID) error
+	DeleteStorageObjects(ctx context.Context, ids []uuid.UUID) error
 	DeleteResource(ctx context.Context, userID, resourceID uuid.UUID) error
 }
 
-var ErrResourceExists = errors.New("resource already exists")
+type Queue interface {
+	Publish(ctx context.Context, objectID uuid.UUID) error
+}
+type FileStorage interface {
+	UploadObject(ctx context.Context, filename string, size int64, body io.Reader) (string, error)
+	DeleteObject(ctx context.Context, filename string) error
+	CreatePresidedURL(ctx context.Context, key string) (string, error)
+}
 
 type ResourceService struct {
 	resourceRepo ResourceRepository
 	filesStorage FileStorage
+	queue        Queue
 }
 
-func NewResourceService(repo ResourceRepository, storage FileStorage) *ResourceService {
-	return &ResourceService{resourceRepo: repo, filesStorage: storage}
+func NewResourceService(repo ResourceRepository, storage FileStorage, queue Queue) *ResourceService {
+	return &ResourceService{resourceRepo: repo, filesStorage: storage, queue: queue}
 }
 
 func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, size int64, resource Resource) error {
@@ -43,13 +53,15 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 
 	//use UUID for object key in AWS
 	storageObjectID := uuid.New()
-	//teeReader to read the file stream to both hahser and the cloud storage
+	//every byte written to hasher from body, will be available to read in the tr also
 	tr := io.TeeReader(body, hasher)
 
+	//save object in the cloud
 	storageObjectUrl, err := s.filesStorage.UploadObject(ctx, storageObjectID.String(), size, tr)
 	if err != nil {
 		return err
 	}
+
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	objectID, exists, err := s.resourceRepo.ObjectExists(ctx, hash)
 	if err != nil {
@@ -62,7 +74,7 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 		//assign the ID returned from the DB, instead of ID in the request
 		resource.ObjectID = &objectID
 
-		// in the backgound delete the object from the storage
+		// in the background delete the object from the storage
 		go func() {
 			err = s.filesStorage.DeleteObject(context.TODO(), storageObjectID.String())
 			if err != nil {
@@ -81,6 +93,12 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 		if err != nil {
 			return err
 		}
+		//here should upload to the queue
+		err = s.queue.Publish(ctx, storageObject.ID)
+		if err != nil {
+			slog.Error("failed to publish message", "err", err.Error())
+		}
+		slog.Info("published message")
 	}
 
 	//check if it exists in the week, to prevent resource deduplication
@@ -135,7 +153,7 @@ func (s *ResourceService) ListResourceForUser(ctx context.Context, userID uuid.U
 
 func (s *ResourceService) GetResource(ctx context.Context, id uuid.UUID) (string, error) {
 	//first get the key for the object
-	return s.filesStorage.CreatePresingedURL(ctx, id.String())
+	return s.filesStorage.CreatePresidedURL(ctx, id.String())
 
 }
 
@@ -155,7 +173,7 @@ func (s *ResourceService) CleanOrphanObjects(ctx context.Context) ([]uuid.UUID, 
 			deletedIds = append(deletedIds, id)
 		}
 	}
-	err = s.resourceRepo.DeleteStorageObjecst(ctx, deletedIds)
+	err = s.resourceRepo.DeleteStorageObjects(ctx, deletedIds)
 	if err != nil {
 		slog.Error("failed to delete storage_objects from DB, but deleted from the storage", "err", err, "ids", ids)
 		return []uuid.UUID{}, err

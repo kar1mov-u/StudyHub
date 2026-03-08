@@ -26,21 +26,21 @@ type UserDTO struct {
 }
 
 func (s *HTTPServer) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
-	var userReqeust CreateUserRequest
-	err := json.NewDecoder(r.Body).Decode(&userReqeust)
+	var userRequest CreateUserRequest
+	err := json.NewDecoder(r.Body).Decode(&userRequest)
 	if err != nil {
 		slog.Error("failed to Decode user input", "err", err)
 		ResponseWithErr(w, http.StatusInternalServerError, "error on decoding input")
 		return
 	}
 	// later can set up more advanced validation, for not not important
-	if userReqeust.FirstName == "" || userReqeust.LastName == "" || userReqeust.Email == "" || userReqeust.Password == "" {
+	if userRequest.FirstName == "" || userRequest.LastName == "" || userRequest.Email == "" || userRequest.Password == "" {
 		ResponseWithErr(w, http.StatusBadRequest, "fields cannot be empty")
 		return
 	}
 
 	//hash pasword
-	hash, err := HashPassword(userReqeust.Password)
+	hash, err := HashPassword(userRequest.Password)
 	if err != nil {
 		slog.Error("failed to hash password", "err", err)
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to hash password")
@@ -49,9 +49,9 @@ func (s *HTTPServer) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := users.User{
 		ID:        uuid.New(),
-		FirstName: userReqeust.FirstName,
-		LastName:  userReqeust.LastName,
-		Email:     userReqeust.Email,
+		FirstName: userRequest.FirstName,
+		LastName:  userRequest.LastName,
+		Email:     userRequest.Email,
 		Password:  hash,
 	}
 
