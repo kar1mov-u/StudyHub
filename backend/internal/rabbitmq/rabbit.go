@@ -22,7 +22,7 @@ func New(user, password, host string) *RabbitMQ {
 	connectionString := fmt.Sprintf("amqp://%s:%s@%s:5672/", user, password, host)
 	conn, err := amqp.Dial(connectionString)
 	if err != nil {
-		log.Fatal("Failed to connect RabbitMQ")
+		log.Fatal("Failed to connect RabbitMQ", err)
 	}
 	m := &RabbitMQ{conn: conn}
 	m.setup()
