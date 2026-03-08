@@ -11,6 +11,9 @@ interface ResourceCardProps {
   resource: Resource
   currentUserId?: string
   onDelete?: (resourceId: string) => void
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (resourceId: string) => void
 }
 
 const getResourceIcon = (type: ResourceType) => {
@@ -39,7 +42,7 @@ const getResourceTypeBadge = (type: ResourceType) => {
   }
 }
 
-const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, onDelete }) => {
+const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, onDelete, selectable, selected, onToggleSelect }) => {
   const [copied, setCopied] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   
@@ -90,11 +93,33 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
     }
   }
 
+  const handleCardClick = () => {
+    if (selectable && onToggleSelect) {
+      onToggleSelect(resource.ID)
+    }
+  }
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card
+      className={`hover:shadow-md transition-shadow ${selectable ? 'cursor-pointer' : ''} ${selected ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+      onClick={selectable ? handleCardClick : undefined}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1 min-w-0">
+            {selectable && (
+              <div className="mt-1 flex-shrink-0">
+                <div
+                  className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+                    selected
+                      ? 'bg-primary border-primary text-primary-foreground'
+                      : 'border-muted-foreground/40'
+                  }`}
+                >
+                  {selected && <Check className="h-3 w-3" />}
+                </div>
+              </div>
+            )}
             <div className="mt-1 text-primary">
               {getResourceIcon(resource.ResourceType)}
             </div>
@@ -105,7 +130,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {isOwnResource && onDelete && (
+            {!selectable && isOwnResource && onDelete && (
               <Button
                 onClick={handleDelete}
                 variant="ghost"
@@ -120,53 +145,59 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, currentUserId, on
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {resource.ResourceType === 'link' ? (
-            <div className="flex gap-2">
+      {!selectable && (
+        <CardContent>
+          <div className="space-y-3">
+            {resource.ResourceType === 'link' ? (
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleOpenLink}
+                  className="flex-1"
+                  variant="default"
+                  disabled={!resource.Url}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Link
+                </Button>
+                <Button
+                  onClick={handleCopyLink}
+                  variant="outline"
+                  disabled={!resource.Url}
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            ) : (
               <Button
-                onClick={handleOpenLink}
-                className="flex-1"
+                onClick={handleDownload}
+                className="w-full"
                 variant="default"
-                disabled={!resource.Url}
+                disabled={!resource.ObjectID}
               >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Link
+                <Download className="h-4 w-4 mr-2" />
+                Download
               </Button>
-              <Button
-                onClick={handleCopyLink}
-                variant="outline"
-                disabled={!resource.Url}
-              >
-                {copied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={handleDownload}
-              className="w-full"
-              variant="default"
-              disabled={!resource.ObjectID}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          )}
-        </div>
-      </CardContent>
+            )}
+          </div>
+        </CardContent>
+      )}
       <CardFooter className="pt-0">
         <div className="text-sm text-muted-foreground">
           Uploaded by{' '}
-          <Link 
-            to={`/users/${resource.UserID}`} 
-            className="text-primary hover:underline font-medium"
-          >
-            {resource.UserName}
-          </Link>
+          {selectable ? (
+            <span className="text-primary font-medium">{resource.UserName}</span>
+          ) : (
+            <Link 
+              to={`/users/${resource.UserID}`} 
+              className="text-primary hover:underline font-medium"
+            >
+              {resource.UserName}
+            </Link>
+          )}
         </div>
       </CardFooter>
     </Card>

@@ -17,9 +17,7 @@ Content: Identify key concepts, definitions, dates, and relationships. Create "F
 Atomicity: Each flashcard should cover exactly one discrete idea to ensure effective active recall.
 
 Format: Your entire response must be a single, valid JSON object containing an array of objects. Do not include any introductory or concluding text.
-Give just 5 flashcards
 Required JSON Schema:
-JSON
 {
  [
     {
@@ -27,7 +25,9 @@ JSON
       "back": "The concise answer or definition goes here"
     }
   ]
-}`
+}
+Output shouldnt include with starting and trailing JSON markdown, and do not include \n whitespaces  
+`
 
 type GeminiClient struct {
 	client *genai.Client
@@ -62,7 +62,7 @@ func (gc *GeminiClient) GenerateFlashCards(ctx context.Context, file io.ReadClos
 
 	result, err := gc.client.Models.GenerateContent(
 		ctx,
-		"gemini-3-flash-preview",
+		"gemini-2.5-flash",
 		contents,
 		nil,
 	)

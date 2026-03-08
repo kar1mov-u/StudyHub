@@ -130,6 +130,16 @@ export interface RegisterRequest {
   last_name: string
 }
 
+// Flashcard types
+export interface Flashcard {
+  ID: string
+  ObjectID: string | null
+  UserID: string | null
+  WeekID: string | null
+  Front: string
+  Back: string
+}
+
 // Response DTOs
 export interface CreateResponse {
   id: string

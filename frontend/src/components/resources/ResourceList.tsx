@@ -9,6 +9,9 @@ interface ResourceListProps {
   emptyMessage?: string
   currentUserId?: string
   onDelete?: (resourceId: string) => void
+  selectable?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (resourceId: string) => void
 }
 
 const ResourceList: React.FC<ResourceListProps> = ({ 
@@ -17,6 +20,9 @@ const ResourceList: React.FC<ResourceListProps> = ({
   emptyMessage = 'No resources available',
   currentUserId,
   onDelete,
+  selectable,
+  selectedIds,
+  onToggleSelect,
 }) => {
   if (isLoading) {
     return (
@@ -51,6 +57,9 @@ const ResourceList: React.FC<ResourceListProps> = ({
           resource={resource}
           currentUserId={currentUserId}
           onDelete={onDelete}
+          selectable={selectable}
+          selected={selectedIds?.has(resource.ID)}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </div>

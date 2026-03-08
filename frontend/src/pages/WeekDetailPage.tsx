@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon } from 'lucide-react'
+import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon, BookOpen, X, CheckSquare } from 'lucide-react'
 import ResourceList from '@/components/resources/ResourceList'
 import ResourceUploadDialog from '@/components/resources/ResourceUploadDialog'
 import ResourceLinkDialog from '@/components/resources/ResourceLinkDialog'
@@ -25,6 +25,10 @@ const WeekDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'files' | 'links'>('files')
   const [uploadFileDialogOpen, setUploadFileDialogOpen] = useState(false)
   const [uploadLinkDialogOpen, setUploadLinkDialogOpen] = useState(false)
+
+  // Study selection mode state
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set())
 
   const weekNumber = modulePage?.Weeks?.find(w => w.ID === weekId)?.Number
 
@@ -64,6 +68,62 @@ const WeekDetailPage: React.FC = () => {
   const handleDeleteResource = (resourceId: string) => {
     setResources(prevResources => prevResources.filter(r => r.ID !== resourceId))
     showToast('Resource deleted successfully', 'success')
+  }
+
+  const handleEnterSelectMode = () => {
+    setSelectMode(true)
+    setSelectedResourceIds(new Set())
+    // Switch to files tab since only files have ObjectIDs
+    setActiveTab('files')
+  }
+
+  const handleCancelSelectMode = () => {
+    setSelectMode(false)
+    setSelectedResourceIds(new Set())
+  }
+
+  const handleToggleSelect = (resourceId: string) => {
+    setSelectedResourceIds(prev => {
+      const next = new Set(prev)
+      if (next.has(resourceId)) {
+        next.delete(resourceId)
+      } else {
+        next.add(resourceId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = () => {
+    if (selectedResourceIds.size === fileResources.length) {
+      // Deselect all
+      setSelectedResourceIds(new Set())
+    } else {
+      // Select all file resources
+      setSelectedResourceIds(new Set(fileResources.map(r => r.ID)))
+    }
+  }
+
+  const handleStartStudying = () => {
+    // Get the ObjectIDs for the selected resources
+    const selectedObjectIds = fileResources
+      .filter(r => selectedResourceIds.has(r.ID) && r.ObjectID)
+      .map(r => r.ObjectID)
+
+    if (selectedObjectIds.length === 0) {
+      showToast('Please select files that have content available', 'error')
+      return
+    }
+
+    // Navigate to study page with the object IDs
+    navigate('/study', {
+      state: {
+        objectIds: selectedObjectIds,
+        weekNumber,
+        moduleCode: modulePage?.Module.Code,
+        moduleName: modulePage?.Module.Name,
+      },
+    })
   }
 
   if (loading) {
@@ -109,23 +169,29 @@ const WeekDetailPage: React.FC = () => {
                   {modulePage.Run.Semester} {modulePage.Run.Year}
                 </p>
               </div>
+              {!selectMode && fileResources.length > 0 && (
+                <Button onClick={handleEnterSelectMode} variant="outline">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Study
+                </Button>
+              )}
             </div>
           </CardHeader>
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'files' | 'links')}>
+      <Tabs value={activeTab} onValueChange={(value) => { if (!selectMode) setActiveTab(value as 'files' | 'links') }}>
         <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="files">
               Files ({fileCount})
             </TabsTrigger>
-            <TabsTrigger value="links">
+            <TabsTrigger value="links" className={selectMode ? 'opacity-50 cursor-not-allowed' : ''}>
               Links ({linkCount})
             </TabsTrigger>
           </TabsList>
 
-          {!user?.IsAdmin && (
+          {!selectMode && !user?.IsAdmin && (
             <>
               {activeTab === 'files' ? (
                 <Button onClick={() => setUploadFileDialogOpen(true)}>
@@ -140,6 +206,15 @@ const WeekDetailPage: React.FC = () => {
               )}
             </>
           )}
+
+          {selectMode && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                <CheckSquare className="h-4 w-4 mr-2" />
+                {selectedResourceIds.size === fileResources.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+          )}
         </div>
 
         <TabsContent value="files">
@@ -148,7 +223,10 @@ const WeekDetailPage: React.FC = () => {
             isLoading={loading}
             emptyMessage="No files uploaded yet"
             currentUserId={user?.ID}
-            onDelete={handleDeleteResource}
+            onDelete={selectMode ? undefined : handleDeleteResource}
+            selectable={selectMode}
+            selectedIds={selectedResourceIds}
+            onToggleSelect={handleToggleSelect}
           />
         </TabsContent>
 
@@ -162,6 +240,33 @@ const WeekDetailPage: React.FC = () => {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Selection mode bottom action bar */}
+      {selectMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg p-4 z-50">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="text-sm font-medium">
+              {selectedResourceIds.size} file{selectedResourceIds.size !== 1 ? 's' : ''} selected
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={handleCancelSelectMode}>
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button
+                onClick={handleStartStudying}
+                disabled={selectedResourceIds.size === 0}
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Start Studying
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add bottom padding when selection bar is visible */}
+      {selectMode && <div className="h-20" />}
 
       {weekId && (
         <>

@@ -4,12 +4,12 @@ import (
 	"StudyHub/internal/auth"
 	"StudyHub/internal/aws"
 	"StudyHub/internal/config"
+	"StudyHub/internal/content"
 	"StudyHub/internal/gemini"
 	"StudyHub/internal/http"
 	"StudyHub/internal/modules"
 	"StudyHub/internal/rabbitmq"
 	"StudyHub/internal/resources"
-	studycontent "StudyHub/internal/study_content"
 	"StudyHub/internal/users"
 	"StudyHub/pgk/postgres"
 	"context"
@@ -34,6 +34,7 @@ func main() {
 	academicCalRepo := modules.NewAcademicCalendarRepositoryPostgres(pool)
 	userRepo := users.NewUserRepositoryPostgres(pool)
 	resourceRepo := resources.NewResourceRepositoryPostgres(pool)
+	contentRepo := content.NewContentRepositoryPostgres(pool)
 
 	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
 	geminiClient := gemini.NewGeminiClient(cfg.GeminiKey)
@@ -45,7 +46,7 @@ func main() {
 	userSrv := users.NewUserService(userRepo)
 	authSrv := auth.NewAuthSerivce("", userRepo)
 	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage, rbmq)
-	contentSrv := studycontent.NewStudyContentService(rbmq, s3Storage, geminiClient)
+	contentSrv := content.NewContentService(contentRepo, rbmq, s3Storage, geminiClient)
 
 	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, ":8080")
 

@@ -1,0 +1,263 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { ArrowLeft, ArrowRight, Loader2, RotateCcw, BookOpen, ChevronLeft } from 'lucide-react'
+import { contentsApi } from '@/api/contents'
+import { useToast } from '@/components/ui/toast'
+import type { Flashcard } from '@/types'
+
+interface StudyPageState {
+  objectIds: string[]
+  weekNumber?: number
+  moduleCode?: string
+  moduleName?: string
+}
+
+const StudyPage: React.FC = () => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { showToast } = useToast()
+
+  const state = location.state as StudyPageState | null
+
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [flipped, setFlipped] = useState(false)
+
+  const loadFlashcards = useCallback(async () => {
+    if (!state?.objectIds || state.objectIds.length === 0) return
+
+    try {
+      setLoading(true)
+      const cards = await contentsApi.getFlashcards(state.objectIds)
+      setFlashcards(cards || [])
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to load flashcards',
+        'error'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [state?.objectIds, showToast])
+
+  useEffect(() => {
+    if (!state?.objectIds) {
+      navigate('/modules', { replace: true })
+      return
+    }
+    loadFlashcards()
+  }, [state, navigate, loadFlashcards])
+
+  const currentCard = flashcards[currentIndex]
+  const totalCards = flashcards.length
+
+  const handleFlip = () => {
+    setFlipped(prev => !prev)
+  }
+
+  const handleNext = () => {
+    if (currentIndex < totalCards - 1) {
+      setCurrentIndex(prev => prev + 1)
+      setFlipped(false)
+    }
+  }
+
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1)
+      setFlipped(false)
+    }
+  }
+
+  const handleRestart = () => {
+    setCurrentIndex(0)
+    setFlipped(false)
+  }
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case ' ':
+        case 'Enter':
+          e.preventDefault()
+          handleFlip()
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          handleNext()
+          break
+        case 'ArrowLeft':
+          e.preventDefault()
+          handlePrevious()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentIndex, totalCards])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading flashcards...</p>
+      </div>
+    )
+  }
+
+  if (!state?.objectIds) {
+    return null
+  }
+
+  if (flashcards.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate(-1)}>
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <div className="text-center py-24">
+          <BookOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">No Flashcards Available</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            No flashcards have been generated for the selected files yet. Flashcards are generated automatically -- please check back later.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={() => navigate(-1)}>
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <div className="text-center">
+          {state.moduleCode && (
+            <p className="text-sm text-muted-foreground">
+              {state.moduleCode}{state.weekNumber ? ` - Week ${state.weekNumber}` : ''}
+            </p>
+          )}
+        </div>
+        <div className="w-20" /> {/* Spacer for centering */}
+      </div>
+
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Card {currentIndex + 1} of {totalCards}</span>
+          <Badge variant="outline">
+            {Math.round(((currentIndex + 1) / totalCards) * 100)}%
+          </Badge>
+        </div>
+        <div className="w-full bg-muted rounded-full h-2">
+          <div
+            className="bg-primary h-2 rounded-full transition-all duration-300"
+            style={{ width: `${((currentIndex + 1) / totalCards) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Flashcard */}
+      <div
+        className="perspective-1000 cursor-pointer"
+        style={{ perspective: '1000px' }}
+        onClick={handleFlip}
+      >
+        <div
+          className="relative w-full transition-transform duration-500"
+          style={{
+            transformStyle: 'preserve-3d',
+            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          }}
+        >
+          {/* Front face */}
+          <Card
+            className="w-full min-h-[300px] flex flex-col items-center justify-center p-8"
+            style={{
+              backfaceVisibility: 'hidden',
+            }}
+          >
+            <Badge variant="secondary" className="mb-4">Front</Badge>
+            <p className="text-xl text-center leading-relaxed whitespace-pre-wrap">
+              {currentCard.Front}
+            </p>
+            <p className="text-sm text-muted-foreground mt-6">
+              Click to flip
+            </p>
+          </Card>
+
+          {/* Back face */}
+          <Card
+            className="w-full min-h-[300px] flex flex-col items-center justify-center p-8 absolute top-0 left-0 bg-primary/5"
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+            }}
+          >
+            <Badge variant="default" className="mb-4">Back</Badge>
+            <p className="text-xl text-center leading-relaxed whitespace-pre-wrap">
+              {currentCard.Back}
+            </p>
+            <p className="text-sm text-muted-foreground mt-6">
+              Click to flip back
+            </p>
+          </Card>
+        </div>
+      </div>
+
+      {/* Navigation controls */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={handlePrevious}
+          disabled={currentIndex === 0}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Previous
+        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleFlip}>
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Flip
+          </Button>
+          {currentIndex === totalCards - 1 && (
+            <Button variant="outline" size="sm" onClick={handleRestart}>
+              Restart
+            </Button>
+          )}
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={handleNext}
+          disabled={currentIndex === totalCards - 1}
+        >
+          Next
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </div>
+
+      {/* Keyboard hints */}
+      <div className="text-center text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-4">
+          <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd> flip</span>
+          <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">&larr;</kbd> previous</span>
+          <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">&rarr;</kbd> next</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export default StudyPage
