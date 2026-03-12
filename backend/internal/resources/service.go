@@ -48,15 +48,20 @@ func NewResourceService(repo ResourceRepository, storage FileStorage, queue Queu
 	return &ResourceService{resourceRepo: repo, filesStorage: storage, queue: queue}
 }
 
+//how to know if its pdf, only do this if its pdf
+
 func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, size int64, resource Resource) error {
 	hasher := sha256.New()
 
-	//use UUID for object key in AWS
-	storageObjectID := uuid.New()
-	//every byte written to hasher from body, will be available to read in the tr also
+	// s3Reader, s3Writer := io.Pipe()
+	// gtbReader, gtbWriter := io.Pipe()
+
+	// writer := io.MultiWriter(hasher, s3Writer, gtbWriter)
+
 	tr := io.TeeReader(body, hasher)
 
 	//save object in the cloud
+	storageObjectID := uuid.New()
 	storageObjectUrl, err := s.filesStorage.UploadObject(ctx, storageObjectID.String(), size, tr)
 	if err != nil {
 		return err

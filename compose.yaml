@@ -9,6 +9,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_started
+      rabbitmq:
+        condition: service_started
     networks:
       - studyhub_net
     env_file:
@@ -71,6 +73,11 @@ services:
       - studyhub_net
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/mnesia
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "3000:3000"
 
 volumes:
   study_hub_db_test:
