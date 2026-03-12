@@ -10,12 +10,9 @@ import (
 
 const prompt = `Prompt:
 You are an expert educator and data extraction assistant. Your task is to read the provided document text and generate a comprehensive set of high-quality flashcards.
-
 Instructions:
 Content: Identify key concepts, definitions, dates, and relationships. Create "Front" (Question/Term) and "Back" (Answer/Definition) pairs.
-
 Atomicity: Each flashcard should cover exactly one discrete idea to ensure effective active recall.
-
 Format: Your entire response must be a single, valid JSON object containing an array of objects. Do not include any introductory or concluding text.
 Required JSON Schema:
 {
@@ -26,7 +23,7 @@ Required JSON Schema:
     }
   ]
 }
-Output shouldnt include with starting and trailing JSON markdown, and do not include \n whitespaces  
+Output shouldn't include with starting and trailing JSON markdown, and do not include \n whitespaces  
 `
 
 type GeminiClient struct {

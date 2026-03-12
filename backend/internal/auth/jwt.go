@@ -12,21 +12,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func createNewJWT(userID string, key string) (string, error) {
-	claims := jwt.MapClaims{
-		"sub": userID,
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte(key))
-	if err != nil {
-		return "", err
-	}
-
-	return signedToken, nil
-}
-
 // it accepts the string, and returns the function that inputs the handler and returns the new handler
 func (s *AuthService) JWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +37,7 @@ func (s *AuthService) JWTMiddleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil || !token.Valid {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			http.Error(w, "invalid token provided", http.StatusUnauthorized)
 			return
 		}
 
@@ -64,11 +49,28 @@ func (s *AuthService) JWTMiddleware(next http.Handler) http.Handler {
 
 		userId, ok := claims["sub"].(string)
 		if !ok {
-			http.Error(w, "invalid token payload", http.StatusUnauthorized)
+			http.Error(w, " token payload token payload is invalid", http.StatusUnauthorized)
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), "userID", userId)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func createNewJWT(userID string, key string) (string, error) {
+
+	claims := jwt.MapClaims{
+		"sub": userID,
+		"exp": time.Now().Add(24 * time.Hour).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	signedToken, err := token.SignedString([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	return signedToken, nil
 }
