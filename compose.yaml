@@ -64,8 +64,10 @@ services:
 
 
     
-    gotenberg:
+  gotenberg:
       image: gotenberg/gotenberg:8
+      networks:
+        - studyhub_net
       ports:
         - "3000:3000"
   rabbitmq:
