@@ -43,6 +43,23 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
     }
   }
 
+  const getFileType = (file: File): string => {
+    const dotIndex = file.name.lastIndexOf('.')
+    if (dotIndex !== -1 && dotIndex < file.name.length - 1) {
+      return file.name.substring(dotIndex + 1).toLowerCase()
+    }
+
+    // Fallback: try to derive from browser MIME type
+    if (file.type) {
+      const mimeParts = file.type.split('/')
+      if (mimeParts.length === 2 && mimeParts[1]) {
+        return mimeParts[1].toLowerCase()
+      }
+    }
+
+    return 'unknown'
+  }
+
   const handleUpload = async () => {
     if (!selectedFile) return
 
@@ -50,6 +67,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       setUploading(true)
       const formData = new FormData()
       formData.append('file', selectedFile)
+      formData.append('fileType', getFileType(selectedFile))
 
       await resourcesApi.uploadFile(weekId, formData)
       showToast('File uploaded successfully', 'success')
