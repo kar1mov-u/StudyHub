@@ -17,6 +17,17 @@ services:
       - .env
     ports:
       - "8080:8080"
+  frontend:
+    build: frontend/
+    # image: ghcr.io/kar1mov-u/study_hub_front_end:latest
+
+    ports:
+      - "80:80" 
+    networks:
+      - studyhub_net
+    depends_on:
+      backend:
+        condition: service_started
 
   db:
     image: postgres:latest
@@ -51,18 +62,14 @@ services:
        - up
 
 
-  frontend:
-    build: frontend/
-    # image: ghcr.io/kar1mov-u/study_hub_front_end:latest
 
-    ports:
-      - "80:80" 
-    networks:
-      - studyhub_net
-    depends_on:
-      backend:
-        condition: service_started
     
+  gotenberg:
+      image: gotenberg/gotenberg:8
+      networks:
+        - studyhub_net
+      ports:
+        - "3000:3000"
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -74,10 +81,6 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/mnesia
 
-  gotenberg:
-    image: gotenberg/gotenberg:8
-    ports:
-      - "3000:3000"
 
 volumes:
   study_hub_db_test:

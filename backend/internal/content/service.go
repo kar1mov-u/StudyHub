@@ -21,6 +21,7 @@ type AI interface {
 }
 
 type ContentRepository interface {
+	isPdf(ctx context.Context, id uuid.UUID) string
 	CreateCardsFromObject(ctx context.Context, cards []Flashcard) error
 	ListCardsFromObjects(ctx context.Context, ids []uuid.UUID) ([]Flashcard, error)
 }

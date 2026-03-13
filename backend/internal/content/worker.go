@@ -4,10 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
+	"mime/multipart"
+	"net/http"
 
 	"github.com/google/uuid"
 )
+
+const GOTENBERG_URL = "http://gotenberg:3000/forms/libreoffice/convert"
 
 func (s *ContentService) startWorkers() {
 	for i := range 5 {
@@ -25,6 +31,13 @@ func (s *ContentService) worker() {
 		file, err := s.fileStorage.GetObject(context.Background(), key)
 		if err != nil {
 			slog.Error("error getting file from storage", "err", err)
+			continue
+		}
+
+		//if file is not pdf, we get the file type and send to the ai service to convert it to pdf, then we continue with the pdf file
+		file, err = s.convertToPdf(context.TODO(), key, file)
+		if err != nil {
+			slog.Error("falied to convert pdf", "err", err)
 			continue
 		}
 
@@ -62,4 +75,52 @@ func cleanupResult(data, id string) ([]Flashcard, error) {
 	}
 
 	return res, nil
+}
+
+func (s *ContentService) convertToPdf(ctx context.Context, idString string, body io.ReadCloser) (io.ReadCloser, error) {
+	id, _ := uuid.Parse(idString)
+	fileType := s.contentRepository.isPdf(ctx, id)
+	if fileType == "pdf" {
+		return body, nil
+	}
+
+	return makeGotenbergRequest(ctx, body, idString+"."+fileType)
+
+}
+
+func makeGotenbergRequest(ctx context.Context, body io.Reader, name string) (io.ReadCloser, error) {
+	//everything read from pr will be writen to pw
+	slog.Info("starting pdf conversion")
+
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
+
+	go func() {
+		defer pw.Close()
+		defer writer.Close()
+
+		part, err := writer.CreateFormFile("file", name)
+		log.Println(name)
+		if err != nil {
+			return
+		}
+
+		_, _ = io.Copy(part, body)
+	}()
+	req, err := http.NewRequest("POST", GOTENBERG_URL, pr)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad status: %s", resp.Status)
+	}
+	return resp.Body, err
+
 }

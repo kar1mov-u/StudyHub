@@ -37,10 +37,10 @@ func (r *ResourceRepositoryPostgres) CreateLinkResource(ctx context.Context, res
 }
 
 func (r *ResourceRepositoryPostgres) CreateStorageObject(ctx context.Context, object storageObject) error {
-	query := `INSERT INTO storage_objects(id, hash, url) VALUES ($1, $2, $3)`
-	_, err := r.pool.Exec(ctx, query, object.ID, object.Hash, object.URL)
+	query := `INSERT INTO storage_objects(id, hash, url, file_type) VALUES ($1, $2, $3, $4)`
+	_, err := r.pool.Exec(ctx, query, object.ID, object.Hash, object.URL, object.FileType)
 	if err != nil {
-		return fmt.Errorf("CreatStorageObject err: %w", err)
+		return fmt.Errorf("CreateStorageObject err: %w", err)
 	}
 	return nil
 }

@@ -33,8 +33,10 @@ func (s *HTTPServer) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+	fileType := r.FormValue("fileType")
+
 	defer file.Close()
-	err = s.resourceSrv.UploadResource(r.Context(), file, handler.Size, resources.Resource{ID: uuid.New(), WeekID: weekID, UserID: userID, ResourceType: resources.ResourceFile, Name: handler.Filename})
+	err = s.resourceSrv.UploadResource(r.Context(), file, handler.Size, resources.Resource{ID: uuid.New(), WeekID: weekID, UserID: userID, ResourceType: resources.ResourceFile, Name: handler.Filename, FileType: fileType})
 
 	if err != nil {
 		if errors.Is(err, resources.ErrResourceExists) {
