@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -78,11 +79,12 @@ func cleanupResult(data, id string) ([]Flashcard, error) {
 
 func (s *ContentService) convertToPdf(ctx context.Context, idString string, body io.ReadCloser) (io.ReadCloser, error) {
 	id, _ := uuid.Parse(idString)
-	if s.contentRepository.isPdf(ctx, id) {
+	fileType := s.contentRepository.isPdf(ctx, id)
+	if fileType == "pdf" {
 		return body, nil
 	}
 
-	return makeGotenbergRequest(ctx, body, idString)
+	return makeGotenbergRequest(ctx, body, idString+"."+fileType)
 
 }
 
@@ -98,6 +100,7 @@ func makeGotenbergRequest(ctx context.Context, body io.Reader, name string) (io.
 		defer writer.Close()
 
 		part, err := writer.CreateFormFile("file", name)
+		log.Println(name)
 		if err != nil {
 			return
 		}

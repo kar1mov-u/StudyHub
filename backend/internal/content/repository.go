@@ -56,13 +56,13 @@ func (r *ContentRepositoryPostgres) ListCardsFromObjects(ctx context.Context, id
 	return cards, nil
 }
 
-func (r *ContentRepositoryPostgres) isPdf(ctx context.Context, id uuid.UUID) bool {
+func (r *ContentRepositoryPostgres) isPdf(ctx context.Context, id uuid.UUID) string {
 	query := `SELECT file_type from storage_objects WHERE id=$1`
 	var fileType string
 	err := r.pool.QueryRow(ctx, query, id).Scan(&fileType)
 	if err != nil {
-		return false
+		return "pdf"
 	}
-	return fileType == "pdf"
+	return fileType
 
 }
