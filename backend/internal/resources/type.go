@@ -21,14 +21,16 @@ type Resource struct {
 	ObjectID     *uuid.UUID
 	ExternalLink *string
 	ResourceType ResourceType
+	FileType     string
 	Name         string
 	CreatedAt    time.Time
 }
 
 type storageObject struct {
-	ID   uuid.UUID
-	Hash string
-	URL  string
+	ID       uuid.UUID
+	Hash     string
+	URL      string
+	FileType string
 }
 
 // this is not Domain type , but instaed a struct that is used when we want +info about the Owner

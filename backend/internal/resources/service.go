@@ -52,12 +52,6 @@ func NewResourceService(repo ResourceRepository, storage FileStorage, queue Queu
 
 func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, size int64, resource Resource) error {
 	hasher := sha256.New()
-
-	// s3Reader, s3Writer := io.Pipe()
-	// gtbReader, gtbWriter := io.Pipe()
-
-	// writer := io.MultiWriter(hasher, s3Writer, gtbWriter)
-
 	tr := io.TeeReader(body, hasher)
 
 	//save object in the cloud
@@ -91,9 +85,7 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 	} else {
 		resource.ObjectID = &storageObjectID
 
-		storageObject := storageObject{ID: storageObjectID}
-		storageObject.Hash = hash
-		storageObject.URL = storageObjectUrl
+		storageObject := storageObject{ID: storageObjectID, Hash: hash, URL: storageObjectUrl, FileType: resource.FileType}
 		err = s.resourceRepo.CreateStorageObject(ctx, storageObject)
 		if err != nil {
 			return err
