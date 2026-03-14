@@ -37,6 +37,7 @@ func main() {
 	contentRepo := content.NewContentRepositoryPostgres(pool)
 
 	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
+
 	geminiClient := gemini.NewGeminiClient(cfg.GeminiKey)
 
 	rbmq := rabbitmq.New(cfg.RBMQUser, cfg.RBMQPass, cfg.RBMQHost)
