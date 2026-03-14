@@ -31,8 +31,8 @@ function App() {
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route index element={<Navigate to="/modules" replace />} />
-              <Route path="home" element={<HomePage />} />
+              <Route index element={<HomePage />} />
+              <Route path="home" element={<Navigate to="/" replace />} />
               <Route path="modules" element={<ModulesPage />} />
               <Route path="modules/:id" element={<ModuleDetailPage />} />
               <Route path="modules/:moduleId/weeks/:weekId" element={<WeekDetailPage />} />
