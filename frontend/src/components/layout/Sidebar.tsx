@@ -37,18 +37,20 @@ const Sidebar: React.FC = () => {
           <span className="font-medium">Modules</span>
         </Link>
         
-        <Link
-          to="/academic-terms"
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
-            location.pathname === '/academic-terms'
-              ? "bg-primary text-primary-foreground"
-              : "text-gray-700 hover:bg-gray-100"
-          )}
-        >
-          <Calendar className="h-5 w-5" />
-          <span className="font-medium">Academic Terms</span>
-        </Link>
+        {user?.IsAdmin && (
+          <Link
+            to="/academic-terms"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+              location.pathname === '/academic-terms'
+                ? "bg-primary text-primary-foreground"
+                : "text-gray-700 hover:bg-gray-100"
+            )}
+          >
+            <Calendar className="h-5 w-5" />
+            <span className="font-medium">Academic Terms</span>
+          </Link>
+        )}
 
         {user?.IsAdmin && (
           <Link

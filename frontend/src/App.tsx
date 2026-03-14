@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ToastProvider } from '@/components/ui/toast'
 import { AuthProvider } from '@/context/AuthContext'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import AdminRoute from '@/components/auth/AdminRoute'
 import Layout from '@/components/layout/Layout'
 import HomePage from '@/pages/HomePage'
 import ModulesPage from '@/pages/ModulesPage'
@@ -36,8 +37,8 @@ function App() {
               <Route path="modules/:id" element={<ModuleDetailPage />} />
               <Route path="modules/:moduleId/weeks/:weekId" element={<WeekDetailPage />} />
               <Route path="study" element={<StudyPage />} />
-              <Route path="academic-terms" element={<AcademicTermsPage />} />
-              <Route path="admin" element={<AdminDashboardPage />} />
+              <Route path="academic-terms" element={<AdminRoute><AcademicTermsPage /></AdminRoute>} />
+              <Route path="admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
               <Route path="users/:userId" element={<UserProfilePage />} />
             </Route>
 
