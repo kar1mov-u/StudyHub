@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,10 @@ import {
   FileText,
   Link2,
   Upload,
-  Clock,
+  ChevronDown,
+  ChevronUp,
+  FolderOpen,
+  ExternalLink,
 } from 'lucide-react'
 import { academicTermsApi } from '@/api/academicTerms'
 import { modulesApi } from '@/api/modules'
@@ -50,6 +53,7 @@ const HomePage: React.FC = () => {
   const [activeTerm, setActiveTerm] = useState<AcademicTerm | null>(null)
   const [modules, setModules] = useState<Module[]>([])
   const [myResources, setMyResources] = useState<UserResource[]>([])
+  const [uploadsExpanded, setUploadsExpanded] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -82,6 +86,15 @@ const HomePage: React.FC = () => {
 
     loadData()
   }, [user])
+
+  // Build a moduleName -> moduleId lookup from loaded modules
+  const moduleNameToId = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const m of modules) {
+      map[m.Name] = m.ID
+    }
+    return map
+  }, [modules])
 
   if (loading) {
     return (
@@ -186,27 +199,55 @@ const HomePage: React.FC = () => {
         </Card>
       </div>
 
-      {/* My Recent Uploads */}
+      {/* My Recent Uploads - Collapsible Dropbox */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              My Recent Uploads
-            </CardTitle>
-            {myResources.length > 0 && user && (
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => navigate(`/users/${user.ID}`)}
-              >
-                View all
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-          </div>
+        <CardHeader className="pb-0">
+          <button
+            type="button"
+            className="flex items-center justify-between w-full text-left group"
+            onClick={() => recentResources.length > 0 && setUploadsExpanded(!uploadsExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <FolderOpen className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">My Recent Uploads</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {myResources.length === 0
+                    ? 'No uploads yet'
+                    : `${myResources.length} ${myResources.length === 1 ? 'upload' : 'uploads'} - Click to ${uploadsExpanded ? 'collapse' : 'expand'}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {myResources.length > 0 && user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigate(`/users/${user.ID}`)
+                  }}
+                >
+                  View all
+                  <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              )}
+              {recentResources.length > 0 && (
+                <div className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground group-hover:bg-muted transition-colors">
+                  {uploadsExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </div>
+              )}
+            </div>
+          </button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-3">
           {recentResources.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed rounded-lg">
               <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
@@ -224,45 +265,63 @@ const HomePage: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {recentResources.map((resource) => (
-                <div
-                  key={resource.ID}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/modules`)}
-                >
-                  <div className="flex items-center gap-3">
-                    {resource.ResourceType === 'file' ? (
-                      <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                      </div>
-                    ) : (
-                      <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center">
-                        <Link2 className="h-4 w-4 text-purple-600" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{resource.Name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {resource.ModuleName} - Week {resource.WeekNumber}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={
-                        resource.ResourceType === 'file' ? 'default' : 'secondary'
-                      }
-                      className="text-xs"
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                uploadsExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="space-y-2 pt-1">
+                {recentResources.map((resource) => {
+                  const moduleId = moduleNameToId[resource.ModuleName]
+                  const weekUrl = moduleId
+                    ? `/modules/${moduleId}/weeks/${resource.WeekID}`
+                    : '/modules'
+
+                  return (
+                    <div
+                      key={resource.ID}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors group/item"
+                      onClick={() => navigate(weekUrl)}
                     >
-                      {resource.ResourceType}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {timeAgo(resource.CreatedAt)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        {resource.ResourceType === 'file' ? (
+                          <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                          </div>
+                        ) : (
+                          <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                            <Link2 className="h-4 w-4 text-purple-600" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {resource.Name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {resource.ModuleName} - Week {resource.WeekNumber}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge
+                          variant={
+                            resource.ResourceType === 'file'
+                              ? 'default'
+                              : 'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {resource.ResourceType}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {timeAgo(resource.CreatedAt)}
+                        </span>
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </CardContent>
