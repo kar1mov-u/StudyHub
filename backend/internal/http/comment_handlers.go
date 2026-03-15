@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 )
 
@@ -39,4 +40,34 @@ func (s *HTTPServer) CreateCommentHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	ResponseWithJSON(w, http.StatusCreated, comment)
+}
+
+func (s *HTTPServer) ListCommentsForWeekHandler(w http.ResponseWriter, r *http.Request) {
+	weekID := chi.URLParam(r, "week_id")
+	comments, err := s.commentSrv.GetCommentsByWeekID(weekID)
+	if err != nil {
+		ResponseWithErr(w, http.StatusInternalServerError, "failed to get comments")
+		return
+	}
+	ResponseWithJSON(w, http.StatusOK, comments)
+}
+
+func (s *HTTPServer) UpvoteCommentHandler(w http.ResponseWriter, r *http.Request) {
+	commentID := chi.URLParam(r, "id")
+	err := s.commentSrv.UpvoteComment(commentID)
+	if err != nil {
+		ResponseWithErr(w, http.StatusInternalServerError, "failed to upvote comment")
+		return
+	}
+	ResponseWithJSON(w, http.StatusOK, map[string]string{"message": "comment upvoted successfully"})
+}
+
+func (s *HTTPServer) DownvoteCommentHandler(w http.ResponseWriter, r *http.Request) {
+	commentID := chi.URLParam(r, "id")
+	err := s.commentSrv.DownvoteComment(commentID)
+	if err != nil {
+		ResponseWithErr(w, http.StatusInternalServerError, "failed to downvote comment")
+		return
+	}
+	ResponseWithJSON(w, http.StatusOK, map[string]string{"message": "comment downvoted successfully"})
 }
