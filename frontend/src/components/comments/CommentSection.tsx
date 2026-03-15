@@ -91,12 +91,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({ weekId }) => {
     }
 
     // Sort top-level by newest first
-    top.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+    top.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
 
     // Sort replies by oldest first (chronological within a thread)
     for (const parentId of Object.keys(replies)) {
       replies[parentId].sort(
-        (a, b) => (a.created_at || 0) - (b.created_at || 0)
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       )
     }
 

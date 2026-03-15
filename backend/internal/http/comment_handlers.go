@@ -3,6 +3,7 @@ package http
 import (
 	"StudyHub/internal/comments"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -46,6 +47,7 @@ func (s *HTTPServer) ListCommentsForWeekHandler(w http.ResponseWriter, r *http.R
 	weekID := chi.URLParam(r, "week_id")
 	comments, err := s.commentSrv.GetCommentsByWeekID(weekID)
 	if err != nil {
+		slog.Error("failed to get comments for week %s: %s", weekID, err.Error(), err)
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to get comments")
 		return
 	}

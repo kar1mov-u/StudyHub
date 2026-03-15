@@ -149,7 +149,7 @@ export interface Comment {
   content: string
   upvote: number
   downvote: number
-  created_at: number
+  created_at: string
 }
 
 export interface CreateCommentRequest {

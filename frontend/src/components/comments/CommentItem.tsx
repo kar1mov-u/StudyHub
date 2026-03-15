@@ -10,10 +10,9 @@ import {
 } from 'lucide-react'
 import type { Comment, User } from '@/types'
 
-function timeAgo(timestamp: number): string {
+function timeAgo(dateStr: string): string {
   const now = Date.now()
-  // Backend may return seconds or milliseconds - handle both
-  const time = timestamp > 1e12 ? timestamp : timestamp * 1000
+  const time = new Date(dateStr).getTime()
   const seconds = Math.floor((now - time) / 1000)
 
   if (seconds < 0 || isNaN(seconds)) return 'just now'

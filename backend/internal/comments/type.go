@@ -1,6 +1,10 @@
 package comments
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Comment struct {
 	ID        uuid.UUID  `json:"id"`
@@ -10,5 +14,5 @@ type Comment struct {
 	Content   string     `json:"content"`
 	Upvote    int        `json:"upvote"`
 	Downvote  int        `json:"downvote"`
-	CreatedAt int64      `json:"created_at"`
+	CreatedAt time.Time  `json:"created_at"`
 }
