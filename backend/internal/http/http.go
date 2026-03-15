@@ -2,6 +2,7 @@ package http
 
 import (
 	"StudyHub/internal/auth"
+	"StudyHub/internal/comments"
 	"StudyHub/internal/content"
 	"StudyHub/internal/modules"
 	"StudyHub/internal/resources"
@@ -23,11 +24,12 @@ type HTTPServer struct {
 	userSrv     *users.UserService
 	resourceSrv *resources.ResourceService
 	contentSrv  *content.ContentService
+	commentSrv  *comments.CommentService
 	httpServer  *http.Server
 	router      *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, commentSrv *comments.CommentService, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
 		moduleSrv:   moduleSrv,
@@ -36,6 +38,7 @@ func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService,
 		resourceSrv: resSrv,
 		router:      router,
 		contentSrv:  cntSrv,
+		commentSrv:  commentSrv,
 		httpServer: &http.Server{
 			Addr:    port,
 			Handler: router,
@@ -101,6 +104,12 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Get("/resources/{id}", srv.GetResourceHandler)
 			priv.Get("/resources/weeks/{week_id}", srv.ListResourcesForWeekHandler)
 			priv.Get("/resources/users/{user_id}", srv.ListResourcesForUserHandler)
+
+			//comments routes
+			priv.Post("/comments", srv.CreateCommentHandler)
+			priv.Get("/comments/weeks/{week_id}", srv.ListCommentsForWeekHandler)
+			priv.Post("/comments/{id}/upvote", srv.UpvoteCommentHandler)
+			priv.Post("/comments/{id}/downvote", srv.DownvoteCommentHandler)
 
 			//content routes
 			priv.Post("/conents/objects", srv.ListCardsFromObjects)
