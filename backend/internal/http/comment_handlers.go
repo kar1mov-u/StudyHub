@@ -59,6 +59,7 @@ func (s *HTTPServer) UpvoteCommentHandler(w http.ResponseWriter, r *http.Request
 	userID := getUserID(r)
 	err := s.commentSrv.UpvoteComment(commentID, userID)
 	if err != nil {
+		slog.Error(err.Error())
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to upvote comment")
 		return
 	}
