@@ -51,3 +51,16 @@ func (r *CommentRespositoryPostres) DownvoteComment(commentID string) error {
 	_, err := r.pool.Exec(context.Background(), "UPDATE week_comments SET downvote = downvote + 1 WHERE id = $1", commentID)
 	return err
 }
+
+func (r *CommentRespositoryPostres) CreateVote(commentID string, userID string, isUpvote bool) error {
+	_, err := r.pool.Exec(context.Background(), "INSERT INTO comment_votes (comment_id, user_id, is_upvote) VALUES ($1, $2, $3)", commentID, userID, isUpvote)
+	return err
+}
+func (r *CommentRespositoryPostres) UserHasVoted(commentID string, userID string) (bool, error) {
+	var count int
+	err := r.pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM comment_votes WHERE comment_id = $1 AND user_id = $2", commentID, userID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
