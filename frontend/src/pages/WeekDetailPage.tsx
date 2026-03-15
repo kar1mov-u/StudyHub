@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon, BookOpen, X, Ch
 import ResourceList from '@/components/resources/ResourceList'
 import ResourceUploadDialog from '@/components/resources/ResourceUploadDialog'
 import ResourceLinkDialog from '@/components/resources/ResourceLinkDialog'
+import CommentSection from '@/components/comments/CommentSection'
 import { resourcesApi } from '@/api/resources'
 import { modulesApi } from '@/api/modules'
 import { useAuth } from '@/context/AuthContext'
@@ -240,6 +241,9 @@ const WeekDetailPage: React.FC = () => {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Comments / Discussion Section */}
+      {weekId && <CommentSection weekId={weekId} />}
 
       {/* Selection mode bottom action bar */}
       {selectMode && (
