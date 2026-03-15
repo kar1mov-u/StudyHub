@@ -7,6 +7,8 @@ type CommentRepository interface {
 	GetCommentsByWeekID(weekID string) ([]Comment, error)
 	UpvoteComment(commentID string) error
 	DownvoteComment(commentID string) error
+	UserHasVoted(commentID, userID string) (bool, error)
+	CreateVote(commentID, userID string, isUpvote bool) error
 }
 
 type CommentService struct {
@@ -28,10 +30,32 @@ func (s *CommentService) GetCommentsByWeekID(weekID string) ([]Comment, error) {
 	return s.repo.GetCommentsByWeekID(weekID)
 }
 
-func (s *CommentService) UpvoteComment(commentID string) error {
+func (s *CommentService) UpvoteComment(commentID, userID string) error {
+	hasVoted, err := s.repo.UserHasVoted(commentID, userID)
+	if err != nil {
+		return err
+	}
+	if hasVoted {
+		return nil
+	}
+	err = s.repo.CreateVote(commentID, userID, true)
+	if err != nil {
+		return err
+	}
 	return s.repo.UpvoteComment(commentID)
 }
 
-func (s *CommentService) DownvoteComment(commentID string) error {
+func (s *CommentService) DownvoteComment(commentID, userID string) error {
+	hasVoted, err := s.repo.UserHasVoted(commentID, userID)
+	if err != nil {
+		return err
+	}
+	if hasVoted {
+		return nil
+	}
+	err = s.repo.CreateVote(commentID, userID, false)
+	if err != nil {
+		return err
+	}
 	return s.repo.DownvoteComment(commentID)
 }

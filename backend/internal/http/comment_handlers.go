@@ -56,7 +56,8 @@ func (s *HTTPServer) ListCommentsForWeekHandler(w http.ResponseWriter, r *http.R
 
 func (s *HTTPServer) UpvoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentID := chi.URLParam(r, "id")
-	err := s.commentSrv.UpvoteComment(commentID)
+	userID := getUserID(r)
+	err := s.commentSrv.UpvoteComment(commentID, userID)
 	if err != nil {
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to upvote comment")
 		return
@@ -66,7 +67,8 @@ func (s *HTTPServer) UpvoteCommentHandler(w http.ResponseWriter, r *http.Request
 
 func (s *HTTPServer) DownvoteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentID := chi.URLParam(r, "id")
-	err := s.commentSrv.DownvoteComment(commentID)
+	userID := getUserID(r)
+	err := s.commentSrv.DownvoteComment(commentID, userID)
 	if err != nil {
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to downvote comment")
 		return
