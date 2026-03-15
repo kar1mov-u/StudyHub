@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS week_comments(
     week_id UUID REFERENCES weeks(id),
     user_id UUID REFERENCES users(id),
     reply UUID REFERENCES week_comments(id),
-    message TEXT NOT NULL,
+    content TEXT NOT NULL,
     upvote INT, 
-    downvote INT
+    downvote INT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
