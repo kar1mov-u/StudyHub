@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS week_comments(
+    id UUID PRIMARY KEY,
+    week_id UUID REFERENCES weeks(id),
+    user_id UUID REFERENCES users(id),
+    reply UUID REFERENCES week_comments(id),
+    content TEXT NOT NULL,
+    upvote INT DEFAULT 0, 
+    downvote INT DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS comment_votes(
+    id UUID PRIMARY KEY,
+    comment_id UUID REFERENCES week_comments(id),
+    user_id UUID REFERENCES users(id),
+    vote_type VARCHAR(10) CHECK (vote_type IN ('upvote', 'downvote')),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(comment_id, user_id)
+);

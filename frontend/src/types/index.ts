@@ -140,6 +140,25 @@ export interface Flashcard {
   Back: string
 }
 
+// Comment types
+export interface Comment {
+  id: string
+  user_id: string
+  week_id: string
+  reply_id?: string | null
+  content: string
+  upvote: number
+  downvote: number
+  created_at: string
+}
+
+export interface CreateCommentRequest {
+  user_id: string
+  week_id: string
+  content: string
+  reply_id?: string
+}
+
 // Response DTOs
 export interface CreateResponse {
   id: string

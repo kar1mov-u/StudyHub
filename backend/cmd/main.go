@@ -3,6 +3,7 @@ package main
 import (
 	"StudyHub/internal/auth"
 	"StudyHub/internal/aws"
+	"StudyHub/internal/comments"
 	"StudyHub/internal/config"
 	"StudyHub/internal/content"
 	"StudyHub/internal/gemini"
@@ -35,6 +36,7 @@ func main() {
 	userRepo := users.NewUserRepositoryPostgres(pool)
 	resourceRepo := resources.NewResourceRepositoryPostgres(pool)
 	contentRepo := content.NewContentRepositoryPostgres(pool)
+	commentRepo := comments.NewCommentRepositoryPostgres(pool)
 
 	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
 
@@ -48,8 +50,9 @@ func main() {
 	authSrv := auth.NewAuthSerivce("", userRepo)
 	resourceSrv := resources.NewResourceService(resourceRepo, s3Storage, rbmq)
 	contentSrv := content.NewContentService(contentRepo, rbmq, s3Storage, geminiClient)
+	commentSrv := comments.NewCommentService(commentRepo)
 
-	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, ":8080")
+	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, commentSrv, ":8080")
 
 	log.Println("listening...")
 	httpServer.Start()
