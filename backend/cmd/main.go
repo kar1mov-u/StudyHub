@@ -18,7 +18,9 @@ import (
 	"log"
 )
 
+// user reverse proxy ga borad, keyn nginx url ga qarap front yoki back ligni blad, agar /api busa bu back ga ketad
 func main() {
+	//load configs
 	cfg := config.Load()
 	log.Println("staring the v1.3  ...")
 
@@ -26,7 +28,7 @@ func main() {
 	defer cancel()
 
 	dbConnString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.DBUser, cfg.DBPass, cfg.DBHost, cfg.DBPort, cfg.DBName)
-
+	//connect to the DB
 	pool := postgres.New(ctx, dbConnString)
 	//createing repo's
 	moduleRepo := modules.NewModuleRepositoryPostgres(pool)
@@ -38,10 +40,9 @@ func main() {
 	contentRepo := content.NewContentRepositoryPostgres(pool)
 	commentRepo := comments.NewCommentRepositoryPostgres(pool)
 
+	//create instances for external services
 	s3Storage := aws.NewS3Storage(cfg.BucketName, cfg.AWS_S3_URL)
-
 	geminiClient := gemini.NewGeminiClient(cfg.GeminiKey)
-
 	rbmq := rabbitmq.New(cfg.RBMQUser, cfg.RBMQPass, cfg.RBMQHost)
 
 	//createing srvs
