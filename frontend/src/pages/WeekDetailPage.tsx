@@ -116,10 +116,11 @@ const WeekDetailPage: React.FC = () => {
       return
     }
 
-    // Navigate to study page with the object IDs
+    // Navigate to study page with the object IDs and weekId
     navigate('/study', {
       state: {
         objectIds: selectedObjectIds,
+        weekId: weekId,
         weekNumber,
         moduleCode: modulePage?.Module.Code,
         moduleName: modulePage?.Module.Name,

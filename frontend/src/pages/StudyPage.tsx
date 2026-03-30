@@ -3,13 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, ArrowRight, Loader2, RotateCcw, BookOpen, ChevronLeft } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Loader2, RotateCcw, BookOpen, ChevronLeft, Plus, Check, Star } from 'lucide-react'
 import { contentsApi } from '@/api/contents'
+import { decksApi } from '@/api/decks'
 import { useToast } from '@/components/ui/toast'
-import type { Flashcard } from '@/types'
+import type { Flashcard, UserDeckCard } from '@/types'
 
 interface StudyPageState {
   objectIds: string[]
+  weekId?: string
   weekNumber?: number
   moduleCode?: string
   moduleName?: string
@@ -26,6 +28,11 @@ const StudyPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
+  
+  // Deck management state
+  const [deckCardIds, setDeckCardIds] = useState<Set<string>>(new Set())
+  const [addingToDeck, setAddingToDeck] = useState(false)
+  const [deckCardMap, setDeckCardMap] = useState<Map<string, string>>(new Map()) // flashcardId -> deckCardId
 
   const loadFlashcards = useCallback(async () => {
     if (!state?.objectIds || state.objectIds.length === 0) return
@@ -44,16 +51,42 @@ const StudyPage: React.FC = () => {
     }
   }, [state?.objectIds, showToast])
 
+  // Load user's deck to check which cards are already added
+  const loadDeck = useCallback(async () => {
+    if (!state?.weekId) return
+
+    try {
+      const deck = await decksApi.getUserDeck(state.weekId)
+      const cardIds = new Set<string>()
+      const cardMap = new Map<string, string>()
+      
+      deck.forEach((card: UserDeckCard) => {
+        if (card.SourceFlashcardID) {
+          cardIds.add(card.SourceFlashcardID)
+          cardMap.set(card.SourceFlashcardID, card.ID)
+        }
+      })
+      
+      setDeckCardIds(cardIds)
+      setDeckCardMap(cardMap)
+    } catch (error) {
+      // Silent fail - deck loading is optional
+      console.error('Failed to load deck:', error)
+    }
+  }, [state?.weekId])
+
   useEffect(() => {
     if (!state?.objectIds) {
       navigate('/modules', { replace: true })
       return
     }
     loadFlashcards()
-  }, [state, navigate, loadFlashcards])
+    loadDeck()
+  }, [state, navigate, loadFlashcards, loadDeck])
 
   const currentCard = flashcards[currentIndex]
   const totalCards = flashcards.length
+  const isInDeck = currentCard ? deckCardIds.has(currentCard.ID) : false
 
   const handleFlip = () => {
     setFlipped(prev => !prev)
@@ -76,6 +109,43 @@ const StudyPage: React.FC = () => {
   const handleRestart = () => {
     setCurrentIndex(0)
     setFlipped(false)
+  }
+
+  const handleAddToDeck = async () => {
+    if (!currentCard || !state?.weekId) return
+
+    try {
+      setAddingToDeck(true)
+      await decksApi.addCardToDeck(state.weekId, { flashcard_id: currentCard.ID })
+      setDeckCardIds(prev => new Set(prev).add(currentCard.ID))
+      showToast('Added to your deck!', 'success')
+      
+      // Reload deck to get the new card ID
+      await loadDeck()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add card'
+      if (message.includes('already')) {
+        showToast('Card is already in your deck', 'error')
+      } else {
+        showToast(message, 'error')
+      }
+    } finally {
+      setAddingToDeck(false)
+    }
+  }
+
+  const handleRateDifficulty = async (rating: number) => {
+    if (!currentCard || !isInDeck) return
+
+    const deckCardId = deckCardMap.get(currentCard.ID)
+    if (!deckCardId) return
+
+    try {
+      await decksApi.recordReview(deckCardId, { difficulty_rating: rating })
+      showToast(`Rated: ${rating}/5`, 'success')
+    } catch (error) {
+      showToast('Failed to record rating', 'error')
+    }
   }
 
   // Keyboard navigation
@@ -198,17 +268,69 @@ const StudyPage: React.FC = () => {
 
           {/* Back face */}
           <Card
-            className="w-full min-h-[300px] flex flex-col items-center justify-center p-8 absolute top-0 left-0 bg-primary/5"
+            className="w-full min-h-[300px] flex flex-col items-center justify-center p-8 absolute top-0 left-0 bg-primary/5 space-y-4"
             style={{
               backfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
             }}
           >
-            <Badge variant="default" className="mb-4">Back</Badge>
+            <Badge variant="default" className="mb-2">Back</Badge>
             <p className="text-xl text-center leading-relaxed whitespace-pre-wrap">
               {currentCard.Back}
             </p>
-            <p className="text-sm text-muted-foreground mt-6">
+            
+            {/* Add to Deck Button - only show if weekId is available */}
+            {state?.weekId && (
+              <div className="mt-4 pt-4 border-t w-full flex flex-col items-center gap-3">
+                {!isInDeck ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleAddToDeck()
+                    }}
+                    disabled={addingToDeck}
+                  >
+                    {addingToDeck ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Add to My Deck
+                  </Button>
+                ) : (
+                  <>
+                    <Badge variant="secondary" className="text-xs">
+                      <Check className="h-3 w-3 mr-1" />
+                      In Your Deck
+                    </Badge>
+                    
+                    {/* Difficulty Rating */}
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Rate difficulty:</p>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRateDifficulty(rating)
+                            }}
+                            className="p-1 hover:scale-110 transition-transform"
+                            title={`Rate ${rating}/5`}
+                          >
+                            <Star className="h-5 w-5 text-yellow-500 hover:fill-yellow-500" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground mt-2">
               Click to flip back
             </p>
           </Card>
