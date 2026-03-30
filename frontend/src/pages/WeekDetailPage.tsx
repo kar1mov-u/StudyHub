@@ -3,16 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon, BookOpen, X, CheckSquare } from 'lucide-react'
+import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon, BookOpen, X, CheckSquare, Plus, BookMarked } from 'lucide-react'
 import ResourceList from '@/components/resources/ResourceList'
 import ResourceUploadDialog from '@/components/resources/ResourceUploadDialog'
 import ResourceLinkDialog from '@/components/resources/ResourceLinkDialog'
 import CommentSection from '@/components/comments/CommentSection'
+import DeckStats from '@/components/decks/DeckStats'
+import DeckList from '@/components/decks/DeckList'
+import CreateCustomCardDialog from '@/components/decks/CreateCustomCardDialog'
+import EditCardDialog from '@/components/decks/EditCardDialog'
 import { resourcesApi } from '@/api/resources'
 import { modulesApi } from '@/api/modules'
+import { decksApi } from '@/api/decks'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/toast'
-import type { Resource, ModulePage } from '@/types'
+import type { Resource, ModulePage, UserDeckCard, DeckStats as DeckStatsType } from '@/types'
 
 const WeekDetailPage: React.FC = () => {
   const { moduleId, weekId } = useParams<{ moduleId: string; weekId: string }>()
@@ -23,9 +28,17 @@ const WeekDetailPage: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([])
   const [modulePage, setModulePage] = useState<ModulePage | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'files' | 'links'>('files')
+  const [activeTab, setActiveTab] = useState<'files' | 'links' | 'deck'>('files')
   const [uploadFileDialogOpen, setUploadFileDialogOpen] = useState(false)
   const [uploadLinkDialogOpen, setUploadLinkDialogOpen] = useState(false)
+
+  // Deck state
+  const [deckCards, setDeckCards] = useState<UserDeckCard[]>([])
+  const [deckStats, setDeckStats] = useState<DeckStatsType | null>(null)
+  const [deckLoading, setDeckLoading] = useState(false)
+  const [createCardDialogOpen, setCreateCardDialogOpen] = useState(false)
+  const [editCardDialogOpen, setEditCardDialogOpen] = useState(false)
+  const [selectedCard, setSelectedCard] = useState<UserDeckCard | null>(null)
 
   // Study selection mode state
   const [selectMode, setSelectMode] = useState(false)
@@ -40,6 +53,7 @@ const WeekDetailPage: React.FC = () => {
   // Get counts for tab badges
   const fileCount = fileResources.length
   const linkCount = linkResources.length
+  const deckCount = deckCards.length
 
   const loadData = async () => {
     if (!moduleId || !weekId) return
@@ -62,9 +76,36 @@ const WeekDetailPage: React.FC = () => {
     }
   }
 
+  const loadDeckData = async () => {
+    if (!weekId || !user?.ID) return
+
+    try {
+      setDeckLoading(true)
+      const [cards, stats] = await Promise.all([
+        decksApi.getUserDeck(weekId),
+        decksApi.getDeckStats(weekId),
+      ])
+      setDeckCards(cards)
+      setDeckStats(stats)
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to load deck data',
+        'error'
+      )
+    } finally {
+      setDeckLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadData()
   }, [moduleId, weekId, showToast])
+
+  useEffect(() => {
+    if (activeTab === 'deck') {
+      loadDeckData()
+    }
+  }, [activeTab, weekId, user?.ID])
 
   const handleDeleteResource = (resourceId: string) => {
     setResources(prevResources => prevResources.filter(r => r.ID !== resourceId))
@@ -128,6 +169,55 @@ const WeekDetailPage: React.FC = () => {
     })
   }
 
+  const handleCreateCard = async (front: string, back: string) => {
+    if (!weekId) return
+
+    try {
+      await decksApi.createCustomCard(weekId, { front, back })
+      showToast('Custom card created successfully', 'success')
+      setCreateCardDialogOpen(false)
+      loadDeckData()
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to create card',
+        'error'
+      )
+    }
+  }
+
+  const handleEditCard = (card: UserDeckCard) => {
+    setSelectedCard(card)
+    setEditCardDialogOpen(true)
+  }
+
+  const handleUpdateCard = async (cardId: string, front?: string, back?: string) => {
+    try {
+      await decksApi.updateCard(cardId, { front, back })
+      showToast('Card updated successfully', 'success')
+      setEditCardDialogOpen(false)
+      setSelectedCard(null)
+      loadDeckData()
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to update card',
+        'error'
+      )
+    }
+  }
+
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      await decksApi.removeCard(cardId)
+      showToast('Card removed from deck', 'success')
+      loadDeckData()
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to delete card',
+        'error'
+      )
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -182,7 +272,7 @@ const WeekDetailPage: React.FC = () => {
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => { if (!selectMode) setActiveTab(value as 'files' | 'links') }}>
+      <Tabs value={activeTab} onValueChange={(value) => { if (!selectMode) setActiveTab(value as 'files' | 'links' | 'deck') }}>
         <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="files">
@@ -190,6 +280,10 @@ const WeekDetailPage: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="links" className={selectMode ? 'opacity-50 cursor-not-allowed' : ''}>
               Links ({linkCount})
+            </TabsTrigger>
+            <TabsTrigger value="deck" className={selectMode ? 'opacity-50 cursor-not-allowed' : ''}>
+              <BookMarked className="h-4 w-4 mr-2" />
+              My Deck ({deckCount})
             </TabsTrigger>
           </TabsList>
 
@@ -200,12 +294,17 @@ const WeekDetailPage: React.FC = () => {
                   <Upload className="h-4 w-4 mr-2" />
                   Upload File
                 </Button>
-              ) : (
+              ) : activeTab === 'links' ? (
                 <Button onClick={() => setUploadLinkDialogOpen(true)}>
                   <LinkIcon className="h-4 w-4 mr-2" />
                   Add Link
                 </Button>
-              )}
+              ) : activeTab === 'deck' ? (
+                <Button onClick={() => setCreateCardDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Custom Card
+                </Button>
+              ) : null}
             </>
           )}
 
@@ -240,6 +339,19 @@ const WeekDetailPage: React.FC = () => {
             currentUserId={user?.ID}
             onDelete={handleDeleteResource}
           />
+        </TabsContent>
+
+        <TabsContent value="deck">
+          <div className="space-y-6">
+            {deckStats && <DeckStats stats={deckStats} />}
+            
+            <DeckList
+              cards={deckCards}
+              isLoading={deckLoading}
+              onEdit={handleEditCard}
+              onDelete={handleDeleteCard}
+            />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -287,6 +399,22 @@ const WeekDetailPage: React.FC = () => {
             weekId={weekId}
             onSuccess={loadData}
           />
+          <CreateCustomCardDialog
+            open={createCardDialogOpen}
+            onOpenChange={setCreateCardDialogOpen}
+            onSubmit={handleCreateCard}
+          />
+          {selectedCard && (
+            <EditCardDialog
+              open={editCardDialogOpen}
+              onOpenChange={(open) => {
+                setEditCardDialogOpen(open)
+                if (!open) setSelectedCard(null)
+              }}
+              card={selectedCard}
+              onSubmit={handleUpdateCard}
+            />
+          )}
         </>
       )}
     </div>
