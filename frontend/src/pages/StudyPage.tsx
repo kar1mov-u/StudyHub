@@ -10,11 +10,14 @@ import { useToast } from '@/components/ui/toast'
 import type { Flashcard, UserDeckCard } from '@/types'
 
 interface StudyPageState {
-  objectIds: string[]
+  objectIds?: string[]
   weekId?: string
   weekNumber?: number
   moduleCode?: string
   moduleName?: string
+  // Deck mode
+  deckMode?: boolean
+  deckCards?: UserDeckCard[]
 }
 
 const StudyPage: React.FC = () => {
@@ -33,8 +36,22 @@ const StudyPage: React.FC = () => {
   const [deckCardIds, setDeckCardIds] = useState<Set<string>>(new Set())
   const [addingToDeck, setAddingToDeck] = useState(false)
   const [deckCardMap, setDeckCardMap] = useState<Map<string, string>>(new Map()) // flashcardId -> deckCardId
+  
+  // Deck mode: studying user's personal deck cards
+  const isDeckMode = state?.deckMode === true
+  const [studyingDeckCards, setStudyingDeckCards] = useState<UserDeckCard[]>([])
 
   const loadFlashcards = useCallback(async () => {
+    if (isDeckMode) {
+      // In deck mode, use the deck cards passed from state
+      if (state?.deckCards) {
+        setStudyingDeckCards(state.deckCards)
+        setLoading(false)
+      }
+      return
+    }
+
+    // Normal mode: load flashcards from objects
     if (!state?.objectIds || state.objectIds.length === 0) return
 
     try {
@@ -49,11 +66,11 @@ const StudyPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [state?.objectIds, showToast])
+  }, [state?.objectIds, state?.deckCards, isDeckMode, showToast])
 
   // Load user's deck to check which cards are already added
   const loadDeck = useCallback(async () => {
-    if (!state?.weekId) return
+    if (!state?.weekId || isDeckMode) return // Don't load in deck mode
 
     try {
       const deck = await decksApi.getUserDeck(state.weekId)
@@ -73,10 +90,10 @@ const StudyPage: React.FC = () => {
       // Silent fail - deck loading is optional
       console.error('Failed to load deck:', error)
     }
-  }, [state?.weekId])
+  }, [state?.weekId, isDeckMode])
 
   useEffect(() => {
-    if (!state?.objectIds) {
+    if (!state?.objectIds && !state?.deckMode) {
       navigate('/modules', { replace: true })
       return
     }
@@ -84,9 +101,13 @@ const StudyPage: React.FC = () => {
     loadDeck()
   }, [state, navigate, loadFlashcards, loadDeck])
 
-  const currentCard = flashcards[currentIndex]
-  const totalCards = flashcards.length
-  const isInDeck = currentCard ? deckCardIds.has(currentCard.ID) : false
+  // Use deck cards if in deck mode, otherwise use flashcards
+  const cards = isDeckMode ? studyingDeckCards : flashcards
+  const currentCard = cards[currentIndex]
+  const totalCards = cards.length
+  
+  // In deck mode, we're already in the deck so no need for "add to deck" logic
+  const isInDeck = isDeckMode ? true : (currentCard && 'ID' in currentCard ? deckCardIds.has(currentCard.ID) : false)
 
   const handleFlip = () => {
     setFlipped(prev => !prev)
@@ -112,12 +133,12 @@ const StudyPage: React.FC = () => {
   }
 
   const handleAddToDeck = async () => {
-    if (!currentCard || !state?.weekId) return
+    if (!currentCard || !state?.weekId || isDeckMode) return
 
     try {
       setAddingToDeck(true)
-      await decksApi.addCardToDeck(state.weekId, { flashcard_id: currentCard.ID })
-      setDeckCardIds(prev => new Set(prev).add(currentCard.ID))
+      await decksApi.addCardToDeck(state.weekId, { flashcard_id: (currentCard as Flashcard).ID })
+      setDeckCardIds(prev => new Set(prev).add((currentCard as Flashcard).ID))
       showToast('Added to your deck!', 'success')
       
       // Reload deck to get the new card ID
@@ -135,14 +156,29 @@ const StudyPage: React.FC = () => {
   }
 
   const handleRateDifficulty = async (rating: number) => {
-    if (!currentCard || !isInDeck) return
+    if (!currentCard) return
 
-    const deckCardId = deckCardMap.get(currentCard.ID)
+    // Get the deck card ID
+    const deckCardId = isDeckMode 
+      ? (currentCard as UserDeckCard).ID 
+      : deckCardMap.get((currentCard as Flashcard).ID)
+    
     if (!deckCardId) return
 
     try {
       await decksApi.recordReview(deckCardId, { difficulty_rating: rating })
       showToast(`Rated: ${rating}/5`, 'success')
+      
+      // Update local state if in deck mode
+      if (isDeckMode) {
+        setStudyingDeckCards(prev => 
+          prev.map(card => 
+            card.ID === deckCardId 
+              ? { ...card, DifficultyRating: rating, ReviewCount: card.ReviewCount + 1 }
+              : card
+          )
+        )
+      }
     } catch (error) {
       showToast('Failed to record rating', 'error')
     }
@@ -181,11 +217,11 @@ const StudyPage: React.FC = () => {
     )
   }
 
-  if (!state?.objectIds) {
+  if (!state?.objectIds && !state?.deckMode) {
     return null
   }
 
-  if (flashcards.length === 0) {
+  if (cards.length === 0) {
     return (
       <div className="space-y-6">
         <Button variant="ghost" onClick={() => navigate(-1)}>
@@ -194,9 +230,13 @@ const StudyPage: React.FC = () => {
         </Button>
         <div className="text-center py-24">
           <BookOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">No Flashcards Available</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            {isDeckMode ? 'No Cards in Deck' : 'No Flashcards Available'}
+          </h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            No flashcards have been generated for the selected files yet. Flashcards are generated automatically -- please check back later.
+            {isDeckMode 
+              ? 'Your deck is empty or no cards match the selected filter. Add cards to your deck from the study page.'
+              : 'No flashcards have been generated for the selected files yet. Flashcards are generated automatically -- please check back later.'}
           </p>
         </div>
       </div>
@@ -264,6 +304,14 @@ const StudyPage: React.FC = () => {
             <p className="text-sm text-muted-foreground mt-6">
               Click to flip
             </p>
+            {isDeckMode && (
+              <div className="mt-4 text-xs text-muted-foreground">
+                <p>Reviews: {(currentCard as UserDeckCard).ReviewCount || 0}</p>
+                {(currentCard as UserDeckCard).DifficultyRating && (
+                  <p>Last rating: {(currentCard as UserDeckCard).DifficultyRating}/5</p>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* Back face */}
@@ -279,10 +327,10 @@ const StudyPage: React.FC = () => {
               {currentCard.Back}
             </p>
             
-            {/* Add to Deck Button - only show if weekId is available */}
+            {/* Add to Deck Button or Difficulty Rating - only show if weekId is available */}
             {state?.weekId && (
               <div className="mt-4 pt-4 border-t w-full flex flex-col items-center gap-3">
-                {!isInDeck ? (
+                {!isDeckMode && !isInDeck ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -301,12 +349,14 @@ const StudyPage: React.FC = () => {
                   </Button>
                 ) : (
                   <>
-                    <Badge variant="secondary" className="text-xs">
-                      <Check className="h-3 w-3 mr-1" />
-                      In Your Deck
-                    </Badge>
+                    {!isDeckMode && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Check className="h-3 w-3 mr-1" />
+                        In Your Deck
+                      </Badge>
+                    )}
                     
-                    {/* Difficulty Rating */}
+                    {/* Difficulty Rating - available in both modes if card is in deck */}
                     <div className="flex flex-col items-center gap-2">
                       <p className="text-xs text-muted-foreground">Rate difficulty:</p>
                       <div className="flex gap-1">

@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon, BookOpen, X, CheckSquare, Plus, BookMarked } from 'lucide-react'
+import { Select } from '@/components/ui/select'
+import { ArrowLeft, Loader2, Calendar, Upload, Link as LinkIcon, BookOpen, X, CheckSquare, Plus, BookMarked, GraduationCap } from 'lucide-react'
 import ResourceList from '@/components/resources/ResourceList'
 import ResourceUploadDialog from '@/components/resources/ResourceUploadDialog'
 import ResourceLinkDialog from '@/components/resources/ResourceLinkDialog'
@@ -39,6 +40,7 @@ const WeekDetailPage: React.FC = () => {
   const [createCardDialogOpen, setCreateCardDialogOpen] = useState(false)
   const [editCardDialogOpen, setEditCardDialogOpen] = useState(false)
   const [selectedCard, setSelectedCard] = useState<UserDeckCard | null>(null)
+  const [deckStudyFilter, setDeckStudyFilter] = useState<'all' | 'reviewed' | 'not-reviewed' | 'difficult'>('all')
 
   // Study selection mode state
   const [selectMode, setSelectMode] = useState(false)
@@ -218,6 +220,52 @@ const WeekDetailPage: React.FC = () => {
     }
   }
 
+  const handleStudyDeck = () => {
+    if (deckCards.length === 0) {
+      showToast('No cards in your deck yet', 'error')
+      return
+    }
+
+    // Filter cards based on selected filter
+    let cardsToStudy = [...deckCards]
+    
+    switch (deckStudyFilter) {
+      case 'reviewed':
+        cardsToStudy = deckCards.filter(card => card.ReviewCount > 0)
+        break
+      case 'not-reviewed':
+        cardsToStudy = deckCards.filter(card => card.ReviewCount === 0)
+        break
+      case 'difficult':
+        // Cards rated 4 or 5 difficulty, or not rated yet
+        cardsToStudy = deckCards.filter(card => 
+          !card.DifficultyRating || card.DifficultyRating >= 4
+        )
+        break
+      case 'all':
+      default:
+        // All cards
+        break
+    }
+
+    if (cardsToStudy.length === 0) {
+      showToast(`No cards match the filter: ${deckStudyFilter}`, 'error')
+      return
+    }
+
+    // Navigate to study page with deck mode
+    navigate('/study', {
+      state: {
+        deckMode: true,
+        deckCards: cardsToStudy,
+        weekId: weekId,
+        weekNumber,
+        moduleCode: modulePage?.Module.Code,
+        moduleName: modulePage?.Module.Name,
+      },
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -300,10 +348,26 @@ const WeekDetailPage: React.FC = () => {
                   Add Link
                 </Button>
               ) : activeTab === 'deck' ? (
-                <Button onClick={() => setCreateCardDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Custom Card
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={deckStudyFilter} 
+                    onChange={(e) => setDeckStudyFilter(e.target.value as any)}
+                    className="w-[160px]"
+                  >
+                    <option value="all">All cards</option>
+                    <option value="not-reviewed">Not reviewed</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="difficult">Difficult (4-5★)</option>
+                  </Select>
+                  <Button variant="outline" onClick={handleStudyDeck} disabled={deckCount === 0}>
+                    <GraduationCap className="h-4 w-4 mr-2" />
+                    Study Deck
+                  </Button>
+                  <Button onClick={() => setCreateCardDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Custom Card
+                  </Button>
+                </div>
               ) : null}
             </>
           )}
