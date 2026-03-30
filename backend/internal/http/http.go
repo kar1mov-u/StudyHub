@@ -114,6 +114,15 @@ func (srv *HTTPServer) registerRoutes() {
 			//content routes
 			priv.Post("/conents/objects", srv.ListCardsFromObjects)
 
+			//user deck routes
+			priv.Post("/decks/weeks/{week_id}/cards", srv.AddCardToDeckHandler)
+			priv.Post("/decks/weeks/{week_id}/cards/custom", srv.CreateCustomCardHandler)
+			priv.Get("/decks/weeks/{week_id}/cards", srv.GetUserDeckHandler)
+			priv.Patch("/decks/cards/{card_id}", srv.UpdateDeckCardHandler)
+			priv.Delete("/decks/cards/{card_id}", srv.RemoveDeckCardHandler)
+			priv.Post("/decks/cards/{card_id}/review", srv.RecordCardReviewHandler)
+			priv.Get("/decks/weeks/{week_id}/stats", srv.GetDeckStatsHandler)
+
 			//interanl processes
 		})
 		r.Group(func(inter chi.Router) {
