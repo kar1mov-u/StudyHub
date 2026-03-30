@@ -76,6 +76,9 @@ func (r *ContentRepositoryPostgres) AddCardToUserDeck(ctx context.Context, userI
 	getCardQuery := `SELECT front, back FROM flashcards WHERE id = $1`
 	err := r.pool.QueryRow(ctx, getCardQuery, flashcardID).Scan(&front, &back)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("flashcard not found")
+		}
 		return err
 	}
 

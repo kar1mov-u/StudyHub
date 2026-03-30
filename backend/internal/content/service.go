@@ -71,16 +71,7 @@ func (s *ContentService) ListSelectedObjectsCards(ctx context.Context, ids []uui
 
 // AddCardToUserDeck adds an auto-generated flashcard to user's personal deck
 func (s *ContentService) AddCardToUserDeck(ctx context.Context, userID, weekID, flashcardID uuid.UUID) error {
-	// Validate that the flashcard exists
-	cards, err := s.contentRepository.ListCardsFromObjects(ctx, []uuid.UUID{flashcardID})
-	if err != nil {
-		return err
-	}
-	if len(cards) == 0 {
-		return errors.New("flashcard not found")
-	}
-
-	// Add to user's deck (duplicate check handled by DB unique constraint)
+	// Add to user's deck (validation and duplicate check handled by repository)
 	return s.contentRepository.AddCardToUserDeck(ctx, userID, weekID, flashcardID)
 }
 
