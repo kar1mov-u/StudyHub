@@ -12,7 +12,7 @@ export const decksApi = {
   // Get user's deck for a week
   getUserDeck: async (weekId: string): Promise<UserDeckCard[]> => {
     const response = await apiClient.get(`/decks/weeks/${weekId}/cards`)
-    return response.data.data || []
+    return response.data || []
   },
 
   // Add auto-generated card to deck
@@ -23,7 +23,7 @@ export const decksApi = {
   // Create custom card
   createCustomCard: async (weekId: string, request: CreateCustomCardRequest): Promise<UserDeckCard> => {
     const response = await apiClient.post(`/decks/weeks/${weekId}/cards/custom`, request)
-    return response.data.data
+    return response.data
   },
 
   // Update card
@@ -44,6 +44,6 @@ export const decksApi = {
   // Get deck statistics
   getDeckStats: async (weekId: string): Promise<DeckStats> => {
     const response = await apiClient.get(`/decks/weeks/${weekId}/stats`)
-    return response.data.data
+    return response.data
   },
 }
