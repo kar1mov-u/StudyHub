@@ -140,6 +140,48 @@ export interface Flashcard {
   Back: string
 }
 
+// User Deck Card types
+export interface UserDeckCard {
+  ID: string
+  UserID: string
+  WeekID: string
+  SourceFlashcardID: string | null
+  Front: string
+  Back: string
+  IsCustom: boolean
+  LastReviewedAt: string | null
+  ReviewCount: number
+  DifficultyRating: number | null
+  CreatedAt: string
+  UpdatedAt: string
+}
+
+export interface DeckStats {
+  total_cards: number
+  reviewed_cards: number
+  average_rating: number
+  last_reviewed_at: string | null
+}
+
+// Deck Request DTOs
+export interface AddCardToDeckRequest {
+  flashcard_id: string
+}
+
+export interface CreateCustomCardRequest {
+  front: string
+  back: string
+}
+
+export interface UpdateCardRequest {
+  front?: string
+  back?: string
+}
+
+export interface RecordReviewRequest {
+  difficulty_rating: number
+}
+
 // Comment types
 export interface Comment {
   id: string

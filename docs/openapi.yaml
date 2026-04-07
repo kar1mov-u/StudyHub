@@ -1,0 +1,1378 @@
+openapi: 3.0.3
+info:
+  title: StudyHub API
+  description: API for managing academic modules, resources, flashcards, and study materials.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:80/api/v1
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: Users
+    description: User management
+  - name: Modules
+    description: Module management
+  - name: Module Runs
+    description: Module run (semester instance) management
+  - name: Academic Terms
+    description: Academic term/calendar management
+  - name: Resources
+    description: File and link resource management
+  - name: Comments
+    description: Week discussion comments
+  - name: Content
+    description: AI-generated flashcards from uploaded content
+  - name: Decks
+    description: User flashcard deck management
+  - name: Internal
+    description: Internal maintenance jobs
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ── Auth ──────────────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: Authenticate with email and password, returns a JWT token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /health:
+    get:
+      tags: [Auth]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Service is running
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ── Users ─────────────────────────────────────────────
+  /users:
+    post:
+      tags: [Users]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserPublic"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UserPublic"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "200":
+          description: User info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UserPublic"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Users]
+      summary: Delete a user
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: user deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Modules ───────────────────────────────────────────
+  /modules:
+    get:
+      tags: [Modules]
+      summary: List all modules
+      responses:
+        "200":
+          description: List of modules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Module"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Modules]
+      summary: Create a module
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModuleRequest"
+      responses:
+        "201":
+          description: Module created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /modules/{id}:
+    get:
+      tags: [Modules]
+      summary: Get module with current run and weeks
+      parameters:
+        - $ref: "#/components/parameters/ModuleID"
+      responses:
+        "200":
+          description: Module with run and weeks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ModulePage"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Modules]
+      summary: Delete a module
+      parameters:
+        - $ref: "#/components/parameters/ModuleID"
+      responses:
+        "204":
+          description: Module deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Module Runs ───────────────────────────────────────
+  /modules/{moduleID}/runs:
+    get:
+      tags: [Module Runs]
+      summary: List runs for a module
+      parameters:
+        - name: moduleID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of module runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ModuleRun"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Module Runs]
+      summary: Create a module run
+      parameters:
+        - name: moduleID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModuleRunRequest"
+      responses:
+        "201":
+          description: Module run created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /module-runs/{id}:
+    get:
+      tags: [Module Runs]
+      summary: Get a module run with weeks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Module run with weeks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ModuleRunPage"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Module Runs]
+      summary: Delete a module run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Module run deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Academic Terms ────────────────────────────────────
+  /academic-terms/current:
+    get:
+      tags: [Academic Terms]
+      summary: Get the current active academic term
+      responses:
+        "200":
+          description: Active academic term
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AcademicTerm"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /academic-terms/new-term:
+    post:
+      tags: [Academic Terms]
+      summary: Create a new academic term
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAcademicTermRequest"
+      responses:
+        "201":
+          description: Academic term created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Resources ─────────────────────────────────────────
+  /resources/file/{week_id}:
+    post:
+      tags: [Resources]
+      summary: Upload a file resource
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, fileType]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                fileType:
+                  type: string
+                  description: MIME type or file category
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /resources/link/{week_id}:
+    post:
+      tags: [Resources]
+      summary: Create a link resource
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLinkRequest"
+      responses:
+        "201":
+          description: Link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /resources/{id}:
+    get:
+      tags: [Resources]
+      summary: Get presigned download URL for a file resource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Object ID of the resource
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Presigned S3 URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+                        description: Presigned S3 download URL
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Resources]
+      summary: Delete a resource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Resource deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /resources/weeks/{week_id}:
+    get:
+      tags: [Resources]
+      summary: List all resources for a week
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      responses:
+        "200":
+          description: List of resources with uploader info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ResourceWithUser"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /resources/users/{user_id}:
+    get:
+      tags: [Resources]
+      summary: List all resources uploaded by a user
+      parameters:
+        - $ref: "#/components/parameters/UserIDPath"
+      responses:
+        "200":
+          description: List of user resources with module context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserResource"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Comments ──────────────────────────────────────────
+  /comments:
+    post:
+      tags: [Comments]
+      summary: Create a comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Comment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /comments/weeks/{week_id}:
+    get:
+      tags: [Comments]
+      summary: List comments for a week
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Comment"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /comments/{id}/upvote:
+    post:
+      tags: [Comments]
+      summary: Upvote a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Comment upvoted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: comment upvoted successfully
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /comments/{id}/downvote:
+    post:
+      tags: [Comments]
+      summary: Downvote a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Comment downvoted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: comment downvoted successfully
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Content (Flashcards) ──────────────────────────────
+  /conents/objects:
+    post:
+      tags: [Content]
+      summary: Get AI-generated flashcards from uploaded objects
+      description: Takes a list of object IDs (uploaded files) and returns generated flashcards.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  description: List of object IDs to generate flashcards from
+      responses:
+        "200":
+          description: Generated flashcards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Flashcard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Decks ─────────────────────────────────────────────
+  /decks/weeks/{week_id}/cards:
+    post:
+      tags: [Decks]
+      summary: Add a generated flashcard to user's deck
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCardToDeckRequest"
+      responses:
+        "201":
+          description: Card added to deck
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Card already exists in deck
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Decks]
+      summary: Get user's deck for a week
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      responses:
+        "200":
+          description: User's deck cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserDeckCard"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /decks/weeks/{week_id}/cards/custom:
+    post:
+      tags: [Decks]
+      summary: Create a custom flashcard in user's deck
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomCardRequest"
+      responses:
+        "201":
+          description: Custom card created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/UserDeckCard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /decks/weeks/{week_id}/stats:
+    get:
+      tags: [Decks]
+      summary: Get deck statistics for a week
+      parameters:
+        - $ref: "#/components/parameters/WeekID"
+      responses:
+        "200":
+          description: Deck statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DeckStats"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /decks/cards/{card_id}:
+    patch:
+      tags: [Decks]
+      summary: Update a deck card's content
+      parameters:
+        - $ref: "#/components/parameters/CardID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCardRequest"
+      responses:
+        "200":
+          description: Card updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Decks]
+      summary: Remove a card from user's deck
+      parameters:
+        - $ref: "#/components/parameters/CardID"
+      responses:
+        "204":
+          description: Card removed
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /decks/cards/{card_id}/review:
+    post:
+      tags: [Decks]
+      summary: Record a review for a deck card
+      parameters:
+        - $ref: "#/components/parameters/CardID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordReviewRequest"
+      responses:
+        "200":
+          description: Review recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Internal ──────────────────────────────────────────
+  /interal/jobs/cleanup-orphaned-objects:
+    get:
+      tags: [Internal]
+      summary: Clean up orphaned S3 objects
+      description: Internal maintenance job. Removes S3 objects not referenced by any resource.
+      security: []
+      responses:
+        "200":
+          description: Cleanup complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyDataResponse"
+
+# ═══════════════════════════════════════════════════════
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT token obtained from /auth/login. Expires after 24 hours."
+
+  parameters:
+    UserID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserIDPath:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ModuleID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WeekID:
+      name: week_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CardID:
+      name: card_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    # ── Request schemas ─────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+
+    CreateUserRequest:
+      type: object
+      required: [first_name, last_name, email, password]
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    CreateModuleRequest:
+      type: object
+      required: [code, name, department_name]
+      properties:
+        code:
+          type: string
+          example: CS101
+        name:
+          type: string
+          example: Introduction to Computer Science
+        department_name:
+          type: string
+          example: Computer Science
+
+    CreateModuleRunRequest:
+      type: object
+      required: [year, semester]
+      properties:
+        year:
+          type: integer
+          example: 2026
+        semester:
+          type: string
+          example: spring
+        is_active:
+          type: boolean
+
+    CreateAcademicTermRequest:
+      type: object
+      required: [year, semester]
+      properties:
+        year:
+          type: integer
+          example: 2026
+        semester:
+          type: string
+          enum: [spring, fall]
+
+    CreateLinkRequest:
+      type: object
+      required: [url, name]
+      properties:
+        url:
+          type: string
+          format: uri
+        name:
+          type: string
+
+    CreateCommentRequest:
+      type: object
+      required: [user_id, week_id, content]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        week_id:
+          type: string
+          format: uuid
+        reply_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent comment ID for replies
+        content:
+          type: string
+
+    AddCardToDeckRequest:
+      type: object
+      required: [flashcard_id]
+      properties:
+        flashcard_id:
+          type: string
+          format: uuid
+
+    CreateCustomCardRequest:
+      type: object
+      required: [front, back]
+      properties:
+        front:
+          type: string
+          description: Front side of the flashcard
+        back:
+          type: string
+          description: Back side of the flashcard
+
+    UpdateCardRequest:
+      type: object
+      properties:
+        front:
+          type: string
+          nullable: true
+        back:
+          type: string
+          nullable: true
+
+    RecordReviewRequest:
+      type: object
+      required: [difficulty_rating]
+      properties:
+        difficulty_rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: "Self-rated difficulty: 1 (easy) to 5 (hard)"
+
+    # ── Response schemas ────────────────────────────────
+    LoginResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT bearer token
+
+    EmptyDataResponse:
+      type: object
+      properties:
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+
+    # ── Domain schemas ──────────────────────────────────
+    UserPublic:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        is_admin:
+          type: boolean
+
+    Module:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        department_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ModuleRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        module_id:
+          type: string
+          format: uuid
+        year:
+          type: integer
+        semester:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Week:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        module_run_id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+
+    ModulePage:
+      type: object
+      properties:
+        Module:
+          $ref: "#/components/schemas/Module"
+        Run:
+          $ref: "#/components/schemas/ModuleRun"
+        Weeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Week"
+
+    ModuleRunPage:
+      type: object
+      properties:
+        Run:
+          $ref: "#/components/schemas/ModuleRun"
+        Weeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Week"
+
+    AcademicTerm:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        year:
+          type: integer
+        semester:
+          type: string
+        is_active:
+          type: boolean
+
+    ResourceWithUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        week_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        user_name:
+          type: string
+          description: Uploader's first name
+        object_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: S3 object ID (file resources only)
+        external_link:
+          type: string
+          format: uri
+          nullable: true
+          description: External URL (link resources only)
+        resource_type:
+          $ref: "#/components/schemas/ResourceType"
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UserResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        week_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        module_name:
+          type: string
+        semester:
+          type: string
+        year:
+          type: integer
+        week_number:
+          type: integer
+        object_id:
+          type: string
+          format: uuid
+          nullable: true
+        external_link:
+          type: string
+          format: uri
+          nullable: true
+        resource_type:
+          $ref: "#/components/schemas/ResourceType"
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ResourceType:
+      type: string
+      enum: [file, link, note]
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        week_id:
+          type: string
+          format: uuid
+        reply_id:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        upvote:
+          type: integer
+        downvote:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Flashcard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+          nullable: true
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        week_id:
+          type: string
+          format: uuid
+          nullable: true
+        front:
+          type: string
+        back:
+          type: string
+
+    UserDeckCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        week_id:
+          type: string
+          format: uuid
+        source_flashcard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "null for custom cards"
+        front:
+          type: string
+        back:
+          type: string
+        is_custom:
+          type: boolean
+        last_reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        review_count:
+          type: integer
+        difficulty_rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DeckStats:
+      type: object
+      properties:
+        total_cards:
+          type: integer
+        reviewed_cards:
+          type: integer
+        average_rating:
+          type: number
+          format: double
+        last_reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
