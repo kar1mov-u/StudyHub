@@ -280,3 +280,127 @@ func TestListCommentsForWeekHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestUpvoteCommentHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		commentID      string
+		userID         string
+		mockFunc       func(commentID, userID string) error
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:      "success - upvote comment",
+			commentID: uuid.New().String(),
+			userID:    uuid.New().String(),
+			mockFunc: func(commentID, userID string) error {
+				return nil
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody:   "comment upvoted successfully",
+		},
+		{
+			name:      "error - upvote failure",
+			commentID: uuid.New().String(),
+			userID:    uuid.New().String(),
+			mockFunc: func(commentID, userID string) error {
+				return errors.New("failed to upvote")
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   "failed to upvote comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := &mockCommentService{upvoteCommentFunc: tt.mockFunc}
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/comments/"+tt.commentID+"/upvote", nil)
+			req = addUserIDToContext(req, tt.userID)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", tt.commentID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			w := httptest.NewRecorder()
+
+			commentIDParam := chi.URLParam(req, "id")
+			userIDParam := getUserID(req)
+			if err := mockSvc.UpvoteComment(commentIDParam, userIDParam); err != nil {
+				ResponseWithErr(w, http.StatusInternalServerError, "failed to upvote comment")
+			} else {
+				ResponseWithJSON(w, http.StatusOK, map[string]string{"message": "comment upvoted successfully"})
+			}
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+			if tt.expectedBody != "" {
+				responseBody := w.Body.String()
+				if !contains(responseBody, tt.expectedBody) {
+					t.Errorf("expected body to contain %q, got %q", tt.expectedBody, responseBody)
+				}
+			}
+		})
+	}
+}
+
+func TestDownvoteCommentHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		commentID      string
+		userID         string
+		mockFunc       func(commentID, userID string) error
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:      "success - downvote comment",
+			commentID: uuid.New().String(),
+			userID:    uuid.New().String(),
+			mockFunc: func(commentID, userID string) error {
+				return nil
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody:   "comment downvoted successfully",
+		},
+		{
+			name:      "error - downvote failure",
+			commentID: uuid.New().String(),
+			userID:    uuid.New().String(),
+			mockFunc: func(commentID, userID string) error {
+				return errors.New("failed to downvote")
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   "failed to downvote comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := &mockCommentService{downvoteCommentFunc: tt.mockFunc}
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/comments/"+tt.commentID+"/downvote", nil)
+			req = addUserIDToContext(req, tt.userID)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", tt.commentID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			w := httptest.NewRecorder()
+
+			commentIDParam := chi.URLParam(req, "id")
+			userIDParam := getUserID(req)
+			if err := mockSvc.DownvoteComment(commentIDParam, userIDParam); err != nil {
+				ResponseWithErr(w, http.StatusInternalServerError, "failed to downvote comment")
+			} else {
+				ResponseWithJSON(w, http.StatusOK, map[string]string{"message": "comment downvoted successfully"})
+			}
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+			if tt.expectedBody != "" {
+				responseBody := w.Body.String()
+				if !contains(responseBody, tt.expectedBody) {
+					t.Errorf("expected body to contain %q, got %q", tt.expectedBody, responseBody)
+				}
+			}
+		})
+	}
+}

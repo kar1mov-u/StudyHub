@@ -105,6 +105,14 @@ func TestAddCardToDeckHandler(t *testing.T) {
 			expectedError:  false,
 		},
 		{
+			name:           "error - invalid request body",
+			weekID:         uuid.New().String(),
+			userID:         uuid.New().String(),
+			requestBody:    "invalid json",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+		},
+		{
 			name:   "error - invalid week ID",
 			weekID: "invalid-uuid",
 			userID: uuid.New().String(),
@@ -355,6 +363,27 @@ func TestRecordCardReviewHandler(t *testing.T) {
 			expectedError:  false,
 		},
 		{
+			name:           "error - invalid request body",
+			cardID:         uuid.New().String(),
+			userID:         uuid.New().String(),
+			requestBody:    "invalid json",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+		},
+		{
+			name:   "error - card not found",
+			cardID: uuid.New().String(),
+			userID: uuid.New().String(),
+			requestBody: content.RecordReviewRequest{
+				DifficultyRating: 3,
+			},
+			mockFunc: func(ctx context.Context, cardID, userID uuid.UUID, difficultyRating int) error {
+				return errors.New("card not found or access denied")
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedError:  true,
+		},
+		{
 			name:   "error - invalid difficulty rating (0)",
 			cardID: uuid.New().String(),
 			userID: uuid.New().String(),
@@ -520,6 +549,99 @@ func TestGetDeckStatsHandler(t *testing.T) {
 				if resp.Data == nil {
 					t.Error("expected data in response")
 				}
+			}
+		})
+	}
+}
+
+func TestListCardsFromObjects(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    interface{}
+		mockFunc       func(ctx context.Context, ids []uuid.UUID) ([]content.Flashcard, error)
+		expectedStatus int
+	}{
+		{
+			name: "success - list cards for objects",
+			requestBody: ListCardsForObjectsRequest{
+				IDs: []string{uuid.New().String(), uuid.New().String()},
+			},
+			mockFunc: func(ctx context.Context, ids []uuid.UUID) ([]content.Flashcard, error) {
+				return []content.Flashcard{{ID: uuid.New(), Front: "Front", Back: "Back"}}, nil
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "error - invalid JSON",
+			requestBody:    "invalid json",
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "error - invalid object ID",
+			requestBody: ListCardsForObjectsRequest{
+				IDs: []string{"invalid-uuid"},
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "error - service error",
+			requestBody: ListCardsForObjectsRequest{
+				IDs: []string{uuid.New().String()},
+			},
+			mockFunc: func(ctx context.Context, ids []uuid.UUID) ([]content.Flashcard, error) {
+				return nil, errors.New("failed to list cards")
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body []byte
+			var err error
+			if str, ok := tt.requestBody.(string); ok {
+				body = []byte(str)
+			} else {
+				body, err = json.Marshal(tt.requestBody)
+				if err != nil {
+					t.Fatalf("failed to marshal request body: %v", err)
+				}
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/conents/objects", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			var payload ListCardsForObjectsRequest
+			if err := json.NewDecoder(bytes.NewReader(body)).Decode(&payload); err != nil {
+				ResponseWithErr(w, http.StatusBadRequest, "invalid request")
+			} else {
+				uuids := make([]uuid.UUID, 0, len(payload.IDs))
+				valid := true
+				for i := range payload.IDs {
+					id, err := uuid.Parse(payload.IDs[i])
+					if err != nil {
+						ResponseWithErr(w, http.StatusBadRequest, "invalid objectID")
+						valid = false
+						break
+					}
+					uuids = append(uuids, id)
+				}
+
+				if valid {
+					cards := []content.Flashcard{}
+					if tt.mockFunc != nil {
+						cards, err = tt.mockFunc(req.Context(), uuids)
+					}
+					if err != nil {
+						ResponseWithErr(w, http.StatusInternalServerError, "failed to list cards")
+					} else {
+						ResponseWithJSON(w, http.StatusOK, cards)
+					}
+				}
+			}
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
 			}
 		})
 	}

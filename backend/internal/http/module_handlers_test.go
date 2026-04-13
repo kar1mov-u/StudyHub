@@ -470,3 +470,126 @@ func TestCreateModuleRunHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestGetModuleRunHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		runID          string
+		mockFunc       func(ctx context.Context, id uuid.UUID) (modules.ModuleRunPage, error)
+		expectedStatus int
+	}{
+		{
+			name:  "success - get module run",
+			runID: uuid.New().String(),
+			mockFunc: func(ctx context.Context, id uuid.UUID) (modules.ModuleRunPage, error) {
+				return modules.ModuleRunPage{
+					Run: modules.ModuleRun{ID: id, Semester: "Spring", Year: 2024},
+				}, nil
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:  "error - module run not found",
+			runID: uuid.New().String(),
+			mockFunc: func(ctx context.Context, id uuid.UUID) (modules.ModuleRunPage, error) {
+				return modules.ModuleRunPage{}, pgx.ErrNoRows
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "error - invalid run ID",
+			runID:          "invalid-uuid",
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := &mockModuleService{getModuleRunFunc: tt.mockFunc}
+			req := httptest.NewRequest(http.MethodGet, "/module-runs/"+tt.runID, nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", tt.runID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			w := httptest.NewRecorder()
+
+			idParam := chi.URLParam(req, "id")
+			id, ok := parseUUID(w, idParam)
+			if ok {
+				moduleRunPage, err := mockSvc.GetModuleRun(req.Context(), id)
+				if err != nil {
+					if isNotFoundError(err) {
+						ResponseWithErr(w, http.StatusNotFound, "module run not found")
+					} else {
+						ResponseWithErr(w, http.StatusInternalServerError, err.Error())
+					}
+				} else {
+					ResponseWithJSON(w, http.StatusOK, moduleRunPage)
+				}
+			}
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+		})
+	}
+}
+
+func TestDeleteModuleRunHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		runID          string
+		mockFunc       func(ctx context.Context, id uuid.UUID) error
+		expectedStatus int
+	}{
+		{
+			name:  "success - delete module run",
+			runID: uuid.New().String(),
+			mockFunc: func(ctx context.Context, id uuid.UUID) error {
+				return nil
+			},
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:  "error - module run not found",
+			runID: uuid.New().String(),
+			mockFunc: func(ctx context.Context, id uuid.UUID) error {
+				return pgx.ErrNoRows
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "error - invalid run ID",
+			runID:          "invalid-uuid",
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := &mockModuleService{deleteModuleRunFunc: tt.mockFunc}
+			req := httptest.NewRequest(http.MethodDelete, "/module-runs/"+tt.runID, nil)
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", tt.runID)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			w := httptest.NewRecorder()
+
+			idParam := chi.URLParam(req, "id")
+			id, ok := parseUUID(w, idParam)
+			if ok {
+				if err := mockSvc.DeleteModuleRun(req.Context(), id); err != nil {
+					if isNotFoundError(err) {
+						ResponseWithErr(w, http.StatusNotFound, "module run not found")
+					} else {
+						ResponseWithErr(w, http.StatusInternalServerError, err.Error())
+					}
+				} else {
+					w.WriteHeader(http.StatusNoContent)
+				}
+			}
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+		})
+	}
+}

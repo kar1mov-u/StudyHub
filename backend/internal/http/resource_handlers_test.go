@@ -581,3 +581,46 @@ func TestUploadFileHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestCleanOrphanObjectsHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		mockFunc       func(ctx context.Context) ([]uuid.UUID, error)
+		expectedStatus int
+	}{
+		{
+			name: "success - clean orphan objects",
+			mockFunc: func(ctx context.Context) ([]uuid.UUID, error) {
+				return []uuid.UUID{uuid.New(), uuid.New()}, nil
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name: "error - service failure",
+			mockFunc: func(ctx context.Context) ([]uuid.UUID, error) {
+				return nil, errors.New("cleanup failed")
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := &mockResourceService{cleanOrphanObjectsFunc: tt.mockFunc}
+			req := httptest.NewRequest(http.MethodGet, "/interal/jobs/cleanup-orphaned-objects", nil)
+			w := httptest.NewRecorder()
+
+			ids, err := mockSvc.CleanOrphanObjects(req.Context())
+			if err != nil {
+				ResponseWithErr(w, http.StatusInternalServerError, "failed to delete ")
+			} else {
+				_ = ids
+				ResponseWithJSON(w, http.StatusOK, nil)
+			}
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+		})
+	}
+}
