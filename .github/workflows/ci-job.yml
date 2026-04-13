@@ -51,6 +51,21 @@ jobs:
                 tags: |
                     ghcr.io/kar1mov-u/studyhub-backend:latest
                     ghcr.io/kar1mov-u/studyhub-backend:${{ github.sha }}
+    test-backend:
+        needs: changes
+        if: ${{needs.changes.outputs.backend=='true'}}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+        - uses: actions/checkout@v4
+        - name: Set up Go
+          uses: actions/setup-go@v5
+          with:
+            go-version-file: backend/go.mod
+        - name: Run backend tests
+          run: go test ./...
+          working-directory: ./backend
 
     build-frontend:
         needs: changes
@@ -107,7 +122,7 @@ jobs:
                     ghcr.io/kar1mov-u/studyhub-migrations:${{ github.sha }}
     
     deploy:
-        needs: [build-backend, build-frontend, build-migrations]
+        needs: [build-backend, build-frontend, build-migrations, test-backend]
         if: |
             always() && 
             !contains(needs.*.result, 'failure') && 
