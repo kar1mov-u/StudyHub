@@ -122,7 +122,7 @@ jobs:
                     ghcr.io/kar1mov-u/studyhub-migrations:${{ github.sha }}
     
     deploy:
-        needs: [build-backend, build-frontend, build-migrations]
+        needs: [build-backend, build-frontend, build-migrations, test-backend]
         if: |
             always() && 
             !contains(needs.*.result, 'failure') && 
