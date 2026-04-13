@@ -417,7 +417,16 @@ func TestRecordCardReviewHandler(t *testing.T) {
 				recordCardReviewFunc: tt.mockFunc,
 			}
 
-			body, _ := json.Marshal(tt.requestBody)
+			var body []byte
+			var err error
+			if str, ok := tt.requestBody.(string); ok {
+				body = []byte(str)
+			} else {
+				body, err = json.Marshal(tt.requestBody)
+				if err != nil {
+					t.Fatalf("failed to marshal request body: %v", err)
+				}
+			}
 			req := httptest.NewRequest(http.MethodPost, "/decks/cards/"+tt.cardID+"/review", bytes.NewBuffer(body))
 			req = addUserIDToContext(req, tt.userID)
 
@@ -435,7 +444,9 @@ func TestRecordCardReviewHandler(t *testing.T) {
 				userID, okUser := parseUUID(w, userIDStr)
 				if okUser {
 					var reqBody content.RecordReviewRequest
-					if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&reqBody); err == nil {
+					if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&reqBody); err != nil {
+						ResponseWithErr(w, http.StatusBadRequest, "invalid request body")
+					} else {
 						err = mockSvc.RecordCardReview(req.Context(), cardID, userID, reqBody.DifficultyRating)
 						if err != nil {
 							if err.Error() == "difficulty rating must be between 1 and 5" {
