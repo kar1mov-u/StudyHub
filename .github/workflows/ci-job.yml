@@ -35,6 +35,39 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                go-version-file: backend/go.mod
+
+            - name: Run backend tests
+              run: go test ./...
+              working-directory: ./backend
+
+            - name: Install golangci-lint
+              run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+              working-directory: ./backend
+
+            - name: Run golangci-lint
+              run: $(go env GOPATH)/bin/golangci-lint run ./...
+              working-directory: ./backend
+
+            - name: Install gosec
+              run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+              working-directory: ./backend
+
+            - name: Run gosec
+              run: $(go env GOPATH)/bin/gosec ./...
+              working-directory: ./backend
+
+            - name: Install govulncheck
+              run: go install golang.org/x/vuln/cmd/govulncheck@latest
+              working-directory: ./backend
+
+            - name: Run govulncheck
+              run: $(go env GOPATH)/bin/govulncheck ./...
+              working-directory: ./backend
+
             - name: Log into GHCR
               uses: docker/login-action@v3
               with:
@@ -51,43 +84,6 @@ jobs:
                 tags: |
                     ghcr.io/kar1mov-u/studyhub-backend:latest
                     ghcr.io/kar1mov-u/studyhub-backend:${{ github.sha }}
-    test-backend:
-        needs: changes
-        if: ${{needs.changes.outputs.backend=='true'}}
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-        steps:
-        - uses: actions/checkout@v4
-        - name: Set up Go
-          uses: actions/setup-go@v5
-          with:
-            go-version-file: backend/go.mod
-        - name: Run backend tests
-          run: go test ./...
-          working-directory: ./backend
-
-    scan-backend:
-        needs: changes
-        if: ${{needs.changes.outputs.backend=='true'}}
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Set up Go
-              uses: actions/setup-go@v5
-              with:
-                go-version-file: backend/go.mod
-
-            - name: Install govulncheck
-              run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
-            - name: Run govulncheck
-              run: govulncheck ./...
-              working-directory: ./backend
-
     build-frontend:
         needs: changes
         if: ${{needs.changes.outputs.frontend=='true'}}
@@ -143,7 +139,7 @@ jobs:
                     ghcr.io/kar1mov-u/studyhub-migrations:${{ github.sha }}
     
     deploy:
-        needs: [build-backend, build-frontend, build-migrations, test-backend, scan-backend]
+        needs: [build-backend, build-frontend, build-migrations]
         if: |
             always() && 
             !contains(needs.*.result, 'failure') && 

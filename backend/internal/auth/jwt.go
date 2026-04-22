@@ -12,6 +12,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type ContextKey string
+
+const UserIDContextKey ContextKey = "userID"
+
 // it accepts the string, and returns the function that inputs the handler and returns the new handler
 func (s *AuthService) JWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +58,7 @@ func (s *AuthService) JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "userID", userId)
+		ctx := context.WithValue(r.Context(), UserIDContextKey, userId)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

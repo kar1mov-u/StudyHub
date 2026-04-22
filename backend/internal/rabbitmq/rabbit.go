@@ -36,7 +36,7 @@ func (rbmq *RabbitMQ) setup() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ch.ExchangeDeclare(
+	if err := ch.ExchangeDeclare(
 		fileUploadExchange,
 		"fanout",
 		true,
@@ -44,17 +44,24 @@ func (rbmq *RabbitMQ) setup() {
 		false,
 		false,
 		nil,
-	)
+	); err != nil {
+		log.Fatal("failed to declare exchange", err)
+	}
 
-	ch.QueueDeclare(AIContentGenQueue,
+	if _, err := ch.QueueDeclare(
+		AIContentGenQueue,
 		true,
 		false,
 		false,
 		false,
 		nil,
-	)
+	); err != nil {
+		log.Fatal("failed to declare queue", err)
+	}
 
-	ch.QueueBind(AIContentGenQueue, "", fileUploadExchange, false, nil)
+	if err := ch.QueueBind(AIContentGenQueue, "", fileUploadExchange, false, nil); err != nil {
+		log.Fatal("failed to bind queue", err)
+	}
 
 }
 

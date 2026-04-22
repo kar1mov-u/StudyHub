@@ -35,7 +35,11 @@ func (s *HTTPServer) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fileType := r.FormValue("fileType")
 
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			slog.Error("failed to close upload file", "err", closeErr)
+		}
+	}()
 	err = s.resourceSrv.UploadResource(r.Context(), file, handler.Size, resources.Resource{ID: uuid.New(), WeekID: weekID, UserID: userID, ResourceType: resources.ResourceFile, Name: handler.Filename, FileType: fileType})
 
 	if err != nil {

@@ -31,10 +31,6 @@ func (r *ContentRepositoryPostgres) CreateCardsFromObject(ctx context.Context, c
 	err := r.pool.SendBatch(ctx, &batch).Close()
 	return err
 }
-func (r *ContentRepositoryPostgres) test() ([]Flashcard, error) {
-	return []Flashcard{}, nil
-}
-
 func (r *ContentRepositoryPostgres) ListCardsFromObjects(ctx context.Context, ids []uuid.UUID) ([]Flashcard, error) {
 
 	query := `SELECT id, storage_object_id, front, back FROM flashcards WHERE storage_object_id = ANY ($1)`

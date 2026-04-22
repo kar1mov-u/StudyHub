@@ -1,6 +1,7 @@
 package http
 
 import (
+	"StudyHub/internal/auth"
 	"StudyHub/internal/content"
 	"bytes"
 	"context"
@@ -77,7 +78,7 @@ func (m *mockContentService) GetDeckStats(ctx context.Context, userID, weekID uu
 
 // Helper to add user ID to context (simulating auth middleware)
 func addUserIDToContext(r *http.Request, userID string) *http.Request {
-	ctx := context.WithValue(r.Context(), "userID", userID)
+	ctx := context.WithValue(r.Context(), auth.UserIDContextKey, userID)
 	return r.WithContext(ctx)
 }
 
@@ -228,7 +229,9 @@ func TestAddCardToDeckHandler(t *testing.T) {
 
 			if tt.expectedError {
 				var resp map[string]interface{}
-				json.Unmarshal(w.Body.Bytes(), &resp)
+				if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("failed to unmarshal response: %v", err)
+				}
 				if _, exists := resp["error"]; !exists {
 					t.Error("expected error in response")
 				}
@@ -330,7 +333,9 @@ func TestGetUserDeckHandler(t *testing.T) {
 
 			if tt.expectedStatus == http.StatusOK {
 				var resp Response
-				json.Unmarshal(w.Body.Bytes(), &resp)
+				if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("failed to unmarshal response: %v", err)
+				}
 				if resp.Data == nil && tt.expectedCount > 0 {
 					t.Error("expected data in response")
 				}
@@ -556,7 +561,9 @@ func TestGetDeckStatsHandler(t *testing.T) {
 
 			if tt.expectData {
 				var resp Response
-				json.Unmarshal(w.Body.Bytes(), &resp)
+				if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("failed to unmarshal response: %v", err)
+				}
 				if resp.Data == nil {
 					t.Error("expected data in response")
 				}
@@ -781,7 +788,9 @@ func TestCreateCustomCardHandler(t *testing.T) {
 
 			if tt.expectedError {
 				var resp map[string]interface{}
-				json.Unmarshal(w.Body.Bytes(), &resp)
+				if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("failed to unmarshal response: %v", err)
+				}
 				if _, exists := resp["error"]; !exists {
 					t.Error("expected error in response")
 				}

@@ -260,9 +260,10 @@ func TestCreateAcademicTermHandler(t *testing.T) {
 				ResponseWithErr(w, http.StatusBadRequest, "semester is required")
 			} else {
 				semester := reqData.Semester
-				if semester == "Spring" {
+				switch semester {
+				case "Spring":
 					semester = "spring"
-				} else if semester == "Fall" {
+				case "Fall":
 					semester = "fall"
 				}
 

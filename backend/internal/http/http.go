@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -40,8 +41,9 @@ func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService,
 		contentSrv:  cntSrv,
 		commentSrv:  commentSrv,
 		httpServer: &http.Server{
-			Addr:    port,
-			Handler: router,
+			Addr:              port,
+			Handler:           router,
+			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}
 	s.registerRoutes()
@@ -64,7 +66,9 @@ func (srv *HTTPServer) registerRoutes() {
 		//auth routes
 		r.Group(func(pub chi.Router) {
 			pub.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("dev setup is not working"))
+				if _, err := w.Write([]byte("dev setup is not working")); err != nil {
+					slog.Error("failed to write health response", "err", err)
+				}
 			})
 			pub.Post("/auth/login", srv.LoginHandler)
 			pub.Post("/users", srv.CreateUserHandler)
@@ -135,7 +139,9 @@ func (srv *HTTPServer) registerRoutes() {
 }
 
 func (srv *HTTPServer) Start() {
-	srv.httpServer.ListenAndServe()
+	if err := srv.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("http server failed", "err", err)
+	}
 }
 
 func (srv *HTTPServer) ShutDown(ctx context.Context) error {

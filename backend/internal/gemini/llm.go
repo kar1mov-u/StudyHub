@@ -41,7 +41,11 @@ func NewGeminiClient(key string) *GeminiClient {
 
 func (gc *GeminiClient) GenerateFlashCards(ctx context.Context, file io.ReadCloser) (string, error) {
 
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Printf("failed to close file: %v\n", closeErr)
+		}
+	}()
 	uploadConfig := &genai.UploadFileConfig{MIMEType: "application/pdf"}
 	uploadedFile, err := gc.client.Files.Upload(ctx, file, uploadConfig)
 	if err != nil {
