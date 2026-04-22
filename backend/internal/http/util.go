@@ -1,6 +1,7 @@
 package http
 
 import (
+	"StudyHub/internal/auth"
 	"errors"
 	"net/http"
 
@@ -30,7 +31,7 @@ func parseUUID(w http.ResponseWriter, param string) (uuid.UUID, bool) {
 }
 
 func getUserID(r *http.Request) string {
-	id := r.Context().Value("userID").(string)
+	id := r.Context().Value(auth.UserIDContextKey).(string)
 	return id
 }
 

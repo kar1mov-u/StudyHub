@@ -476,9 +476,15 @@ func TestUploadFileHandler(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				part.Write([]byte("test file content"))
-				writer.WriteField("fileType", "pdf")
-				writer.Close()
+				if _, err := part.Write([]byte("test file content")); err != nil {
+					return nil, err
+				}
+				if err := writer.WriteField("fileType", "pdf"); err != nil {
+					return nil, err
+				}
+				if err := writer.Close(); err != nil {
+					return nil, err
+				}
 
 				req := httptest.NewRequest(http.MethodPost, "/resources/file/test", body)
 				req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -496,9 +502,16 @@ func TestUploadFileHandler(t *testing.T) {
 			setupRequest: func() (*http.Request, error) {
 				body := &bytes.Buffer{}
 				writer := multipart.NewWriter(body)
-				part, _ := writer.CreateFormFile("file", "test.pdf")
-				part.Write([]byte("test content"))
-				writer.Close()
+				part, err := writer.CreateFormFile("file", "test.pdf")
+				if err != nil {
+					return nil, err
+				}
+				if _, err := part.Write([]byte("test content")); err != nil {
+					return nil, err
+				}
+				if err := writer.Close(); err != nil {
+					return nil, err
+				}
 
 				req := httptest.NewRequest(http.MethodPost, "/resources/file/test", body)
 				req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -551,7 +564,11 @@ func TestUploadFileHandler(t *testing.T) {
 					if err != nil {
 						ResponseWithErr(w, http.StatusBadRequest, "cannot access form file data")
 					} else {
-						defer file.Close()
+						defer func() {
+							if closeErr := file.Close(); closeErr != nil {
+								t.Fatalf("failed to close file: %v", closeErr)
+							}
+						}()
 						fileType := req.FormValue("fileType")
 						resource := resources.Resource{
 							ID:           uuid.New(),

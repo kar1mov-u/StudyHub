@@ -55,6 +55,10 @@ func (s *ContentService) worker() {
 		//save to the DB
 
 		err = s.contentRepository.CreateCardsFromObject(context.Background(), flashcards)
+		if err != nil {
+			slog.Error("failed to save flashcards", "err", err)
+			continue
+		}
 
 		slog.Info("finished job ", " object id :", key)
 
@@ -96,8 +100,14 @@ func makeGotenbergRequest(ctx context.Context, body io.Reader, name string) (io.
 	writer := multipart.NewWriter(pw)
 
 	go func() {
-		defer pw.Close()
-		defer writer.Close()
+		defer func() {
+			if closeErr := writer.Close(); closeErr != nil {
+				slog.Error("failed to close multipart writer", "err", closeErr)
+			}
+			if closeErr := pw.Close(); closeErr != nil {
+				slog.Error("failed to close pipe writer", "err", closeErr)
+			}
+		}()
 
 		part, err := writer.CreateFormFile("file", name)
 		log.Println(name)
