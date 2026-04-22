@@ -74,14 +74,13 @@ func (s *ResourceService) UploadResource(ctx context.Context, body io.Reader, si
 		resource.ObjectID = &objectID
 
 		// in the background delete the object from the storage
-		go func() {
-			err = s.filesStorage.DeleteObject(context.TODO(), storageObjectID.String())
-			if err != nil {
-				slog.Info("failed to delete from storage", "err", err)
-			} else {
-				slog.Info("successfully deleted the file from the storage")
+		go func(deleteCtx context.Context, objectKey string) {
+			if deleteErr := s.filesStorage.DeleteObject(deleteCtx, objectKey); deleteErr != nil {
+				slog.Info("failed to delete from storage", "err", deleteErr)
+				return
 			}
-		}()
+			slog.Info("successfully deleted the file from the storage")
+		}(ctx, storageObjectID.String())
 	} else {
 		resource.ObjectID = &storageObjectID
 

@@ -47,7 +47,7 @@ func (s *HTTPServer) ListCommentsForWeekHandler(w http.ResponseWriter, r *http.R
 	weekID := chi.URLParam(r, "week_id")
 	comments, err := s.commentSrv.GetCommentsByWeekID(weekID)
 	if err != nil {
-		slog.Error("failed to get comments for week", "week_id", weekID, "error", err.Error())
+		slog.Error("failed to get comments for week")
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to get comments")
 		return
 	}
@@ -59,7 +59,7 @@ func (s *HTTPServer) UpvoteCommentHandler(w http.ResponseWriter, r *http.Request
 	userID := getUserID(r)
 	err := s.commentSrv.UpvoteComment(commentID, userID)
 	if err != nil {
-		slog.Error("failed to upvote comment", "comment_id", commentID, "user_id", userID, "error", err.Error())
+		slog.Error("failed to upvote comment")
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to upvote comment")
 		return
 	}
@@ -71,7 +71,7 @@ func (s *HTTPServer) DownvoteCommentHandler(w http.ResponseWriter, r *http.Reque
 	userID := getUserID(r)
 	err := s.commentSrv.DownvoteComment(commentID, userID)
 	if err != nil {
-		slog.Error("failed to downvote comment", "comment_id", commentID, "user_id", userID, "error", err.Error())
+		slog.Error("failed to downvote comment")
 		ResponseWithErr(w, http.StatusInternalServerError, "failed to downvote comment")
 		return
 	}

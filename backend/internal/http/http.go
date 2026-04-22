@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -40,8 +41,9 @@ func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService,
 		contentSrv:  cntSrv,
 		commentSrv:  commentSrv,
 		httpServer: &http.Server{
-			Addr:    port,
-			Handler: router,
+			Addr:              port,
+			Handler:           router,
+			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}
 	s.registerRoutes()
