@@ -79,10 +79,10 @@ func (s *S3Storage) GetObject(ctx context.Context, key string) (io.ReadCloser, e
 	if err != nil {
 		var noKey *types.NoSuchKey
 		if errors.As(err, &noKey) {
-			log.Printf("Can't get object %s from bucket %s. No such key exists.\n", key, s.bucketName)
+			log.Printf("Can't get object %s from bucket %s. No such key exists. \n", key, s.bucketName)
 			err = noKey
 		} else {
-			log.Printf("Couldn't get object %v:%v. Here's why: %v\n", s.bucketName, key, err)
+			log.Printf("Couldn't get object %v:%v. Here's why : %v\n", s.bucketName, key, err)
 		}
 		return nil, err
 	}
