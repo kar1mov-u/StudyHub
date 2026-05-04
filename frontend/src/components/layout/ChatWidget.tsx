@@ -1,17 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Loader2, Bot } from 'lucide-react'
+import { MessageCircle, X, Send, Loader2, Bot, FileText } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { chatApi } from '@/api/chat'
+import { chatApi, type ChatSource } from '@/api/chat'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  sources?: ChatSource[]
 }
 
 const ChatWidget: React.FC = () => {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hi! I\'m the StudyHub assistant. Ask me anything about using the app.' },
+    { role: 'assistant', content: "Hi! I'm the StudyHub assistant. Ask me anything about the app or your study materials." },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -35,8 +36,8 @@ const ChatWidget: React.FC = () => {
     setLoading(true)
 
     try {
-      const reply = await chatApi.sendMessage(text)
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+      const { reply, sources } = await chatApi.sendMessage(text)
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, sources }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
     } finally {
@@ -54,7 +55,7 @@ const ChatWidget: React.FC = () => {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {open && (
-        <div className="w-80 h-[440px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-80 h-[480px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-primary text-primary-foreground">
             <div className="flex items-center gap-2">
@@ -70,26 +71,41 @@ const ChatWidget: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-sm'
-                      : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                  }`}
-                >
-                  {msg.role === 'user' ? msg.content : (
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-                        ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
-                        li: ({ children }) => <li>{children}</li>,
-                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                        code: ({ children }) => <code className="bg-gray-200 rounded px-1 text-xs font-mono">{children}</code>,
-                      }}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
+                <div className="flex flex-col gap-1 max-w-[85%]">
+                  <div
+                    className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-sm'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                    }`}
+                  >
+                    {msg.role === 'user' ? msg.content : (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+                          li: ({ children }) => <li>{children}</li>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          code: ({ children }) => <code className="bg-gray-200 rounded px-1 text-xs font-mono">{children}</code>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    )}
+                  </div>
+                  {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                    <div className="flex flex-wrap gap-1 px-1">
+                      {msg.sources.map((s, j) => (
+                        <span
+                          key={j}
+                          className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-100 rounded px-1.5 py-0.5"
+                        >
+                          <FileText className="h-2.5 w-2.5" />
+                          {s.source}{s.page != null ? ` p.${s.page + 1}` : ''}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

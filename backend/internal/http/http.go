@@ -21,28 +21,30 @@ import (
 )
 
 type HTTPServer struct {
-	moduleSrv    *modules.ModuleService
-	authSrv      *auth.AuthService
-	userSrv      *users.UserService
-	resourceSrv  *resources.ResourceService
-	contentSrv   *content.ContentService
-	commentSrv   *comments.CommentService
-	geminiClient *gemini.GeminiClient
-	httpServer   *http.Server
-	router       *chi.Mux
+	moduleSrv     *modules.ModuleService
+	authSrv       *auth.AuthService
+	userSrv       *users.UserService
+	resourceSrv   *resources.ResourceService
+	contentSrv    *content.ContentService
+	commentSrv    *comments.CommentService
+	geminiClient  *gemini.GeminiClient
+	ragServiceURL string
+	httpServer    *http.Server
+	router        *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, commentSrv *comments.CommentService, geminiClient *gemini.GeminiClient, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, commentSrv *comments.CommentService, geminiClient *gemini.GeminiClient, ragServiceURL string, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
-		moduleSrv:    moduleSrv,
-		userSrv:      userSrv,
-		authSrv:      authSrv,
-		resourceSrv:  resSrv,
-		router:       router,
-		contentSrv:   cntSrv,
-		commentSrv:   commentSrv,
-		geminiClient: geminiClient,
+		moduleSrv:     moduleSrv,
+		userSrv:       userSrv,
+		authSrv:       authSrv,
+		resourceSrv:   resSrv,
+		router:        router,
+		contentSrv:    cntSrv,
+		commentSrv:    commentSrv,
+		geminiClient:  geminiClient,
+		ragServiceURL: ragServiceURL,
 		httpServer: &http.Server{
 			Addr:              port,
 			Handler:           router,
