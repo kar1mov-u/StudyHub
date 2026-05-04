@@ -4,6 +4,7 @@ import (
 	"StudyHub/internal/auth"
 	"StudyHub/internal/comments"
 	"StudyHub/internal/content"
+	"StudyHub/internal/gemini"
 	"StudyHub/internal/modules"
 	"StudyHub/internal/resources"
 	"StudyHub/internal/users"
@@ -20,26 +21,30 @@ import (
 )
 
 type HTTPServer struct {
-	moduleSrv   *modules.ModuleService
-	authSrv     *auth.AuthService
-	userSrv     *users.UserService
-	resourceSrv *resources.ResourceService
-	contentSrv  *content.ContentService
-	commentSrv  *comments.CommentService
-	httpServer  *http.Server
-	router      *chi.Mux
+	moduleSrv     *modules.ModuleService
+	authSrv       *auth.AuthService
+	userSrv       *users.UserService
+	resourceSrv   *resources.ResourceService
+	contentSrv    *content.ContentService
+	commentSrv    *comments.CommentService
+	geminiClient  *gemini.GeminiClient
+	ragServiceURL string
+	httpServer    *http.Server
+	router        *chi.Mux
 }
 
-func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, commentSrv *comments.CommentService, port string) *HTTPServer {
+func NewHTTPServer(moduleSrv *modules.ModuleService, userSrv *users.UserService, authSrv *auth.AuthService, resSrv *resources.ResourceService, cntSrv *content.ContentService, commentSrv *comments.CommentService, geminiClient *gemini.GeminiClient, ragServiceURL string, port string) *HTTPServer {
 	router := chi.NewMux()
 	s := HTTPServer{
-		moduleSrv:   moduleSrv,
-		userSrv:     userSrv,
-		authSrv:     authSrv,
-		resourceSrv: resSrv,
-		router:      router,
-		contentSrv:  cntSrv,
-		commentSrv:  commentSrv,
+		moduleSrv:     moduleSrv,
+		userSrv:       userSrv,
+		authSrv:       authSrv,
+		resourceSrv:   resSrv,
+		router:        router,
+		contentSrv:    cntSrv,
+		commentSrv:    commentSrv,
+		geminiClient:  geminiClient,
+		ragServiceURL: ragServiceURL,
 		httpServer: &http.Server{
 			Addr:              port,
 			Handler:           router,
@@ -127,6 +132,9 @@ func (srv *HTTPServer) registerRoutes() {
 			priv.Delete("/decks/cards/{card_id}", srv.RemoveDeckCardHandler)
 			priv.Post("/decks/cards/{card_id}/review", srv.RecordCardReviewHandler)
 			priv.Get("/decks/weeks/{week_id}/stats", srv.GetDeckStatsHandler)
+
+			// chat route
+			priv.Post("/chat", srv.ChatHandler)
 
 			//interanl processes
 		})
