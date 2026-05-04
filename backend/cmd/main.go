@@ -53,7 +53,7 @@ func main() {
 	contentSrv := content.NewContentService(contentRepo, rbmq, s3Storage, geminiClient)
 	commentSrv := comments.NewCommentService(commentRepo)
 
-	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, commentSrv, ":8080")
+	httpServer := http.NewHTTPServer(moduleSrv, userSrv, authSrv, resourceSrv, contentSrv, commentSrv, geminiClient, ":8080")
 
 	log.Println("listening...")
 	httpServer.Start()

@@ -8,6 +8,23 @@ import (
 	"google.golang.org/genai"
 )
 
+const chatSystemContext = `You are a helpful assistant for StudyHub, an academic study management platform.
+
+StudyHub helps students manage their academic modules and study resources. Here is what the app does:
+
+- Modules: Academic courses organised by department (e.g. "Introduction to Computer Science"). Each module has one or more runs.
+- Module Runs: A specific instance of a module in a semester and year (e.g. Spring 2024). Each run contains weekly sessions.
+- Weeks: Individual weeks within a module run, each holding uploaded resources.
+- Resources: Files (PDFs, docs, etc.) or external links that students upload to a specific week. Files are stored in AWS S3.
+- Flashcard Decks: AI-generated flashcards from uploaded PDF files that help students study. Users can also create custom cards.
+- Comments: Students can comment on weekly resources and upvote/downvote others' comments.
+- User Profiles: Each user can view their own uploads and those of other students.
+- Academic Terms: Admin-managed terms (semester + year) that group module runs.
+
+Navigation structure: Modules → Module Detail (runs & weeks) → Week Detail (resources, comments, flashcards)
+
+Answer questions about how to use the app, its features, and how to navigate it. If asked about real-time data (e.g. "what modules exist"), explain you can't access live data but describe where to find it in the app.`
+
 const prompt = `Prompt:
 You are an expert educator and data extraction assistant. Your task is to read the provided document text and generate a comprehensive set of high-quality flashcards.
 Instructions:
@@ -69,6 +86,20 @@ func (gc *GeminiClient) GenerateFlashCards(ctx context.Context, file io.ReadClos
 	)
 	if err != nil {
 		return "", err
+	}
+	return result.Text(), nil
+}
+
+func (gc *GeminiClient) Chat(ctx context.Context, message string) (string, error) {
+	fullPrompt := chatSystemContext + "\n\nUser question: " + message
+
+	contents := []*genai.Content{
+		genai.NewContentFromParts([]*genai.Part{genai.NewPartFromText(fullPrompt)}, genai.RoleUser),
+	}
+
+	result, err := gc.client.Models.GenerateContent(ctx, "gemini-2.5-flash-lite", contents, nil)
+	if err != nil {
+		return "", fmt.Errorf("gemini chat failed: %w", err)
 	}
 	return result.Text(), nil
 }
