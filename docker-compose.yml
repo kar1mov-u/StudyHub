@@ -37,6 +37,15 @@ services:
       db:
         condition: service_healthy
 
+  rag-service:
+    build:
+      context: ./rag-service
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - rag_data:/app/data
+      - rag_chroma:/app/chroma_db
+
   backend:
     build:
       context: ./backend
@@ -45,11 +54,14 @@ services:
     environment:
       DB_HOST: db
       RBMQ_HOST: rabbitmq
+      RAG_SERVICE_URL: http://rag-service:8001
     depends_on:
       migrate:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+      rag-service:
+        condition: service_started
 
   frontend:
     build:
@@ -61,3 +73,5 @@ services:
 
 volumes:
   postgres_data:
+  rag_data:
+  rag_chroma:
