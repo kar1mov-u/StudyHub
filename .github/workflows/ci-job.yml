@@ -6,24 +6,27 @@ on:
 jobs:
     changes:
         runs-on: ubuntu-latest
-        permissions: 
+        permissions:
             contents: read
         outputs:
             backend: ${{ steps.filter.outputs.backend }}
             frontend: ${{ steps.filter.outputs.frontend }}
             migrations: ${{ steps.filter.outputs.migrations }}
+            rag-service: ${{ steps.filter.outputs.rag-service }}
         steps:
             - uses: actions/checkout@v4
             - uses: dorny/paths-filter@v3
               id: filter
-              with: 
+              with:
                 filters: |
                     backend:
                         - 'backend/**'
                     frontend:
                         - 'frontend/**'
                     migrations:
-                        - 'migrations/**' 
+                        - 'migrations/**'
+                    rag-service:
+                        - 'rag-service/**'
     
     build-backend:
         needs: changes
@@ -138,8 +141,35 @@ jobs:
                     ghcr.io/kar1mov-u/studyhub-migrations:latest
                     ghcr.io/kar1mov-u/studyhub-migrations:${{ github.sha }}
     
+    build-rag-service:
+        needs: changes
+        if: ${{needs.changes.outputs['rag-service']=='true'}}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Log into GHCR
+              uses: docker/login-action@v3
+              with:
+                registry: ghcr.io
+                username: ${{github.actor}}
+                password: ${{secrets.TOKEN_GITHUB}}
+
+            - name: Build and push
+              uses: docker/build-push-action@v5
+              with:
+                context: ./rag-service
+                push: true
+                platforms: linux/amd64
+                tags: |
+                    ghcr.io/kar1mov-u/studyhub-rag-service:latest
+                    ghcr.io/kar1mov-u/studyhub-rag-service:${{ github.sha }}
+
     deploy:
-        needs: [build-backend, build-frontend, build-migrations]
+        needs: [build-backend, build-frontend, build-migrations, build-rag-service]
         if: |
             always() && 
             !contains(needs.*.result, 'failure') && 

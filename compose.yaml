@@ -1,5 +1,16 @@
 # this is compose file for the prod
 services:
+  rag-service:
+    image: ghcr.io/kar1mov-u/studyhub-rag-service:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - studyhub_net
+    volumes:
+      - rag_data:/app/data
+      - rag_chroma:/app/chroma_db
+
   backend:
     build: backend/
     # image: ghcr.io/kar1mov-u/study_hub_backend:latest
@@ -11,10 +22,14 @@ services:
         condition: service_started
       rabbitmq:
         condition: service_started
+      rag-service:
+        condition: service_started
     networks:
       - studyhub_net
     env_file:
       - .env
+    environment:
+      RAG_SERVICE_URL: http://rag-service:8001
     ports:
       - "8080:8080"
   frontend:
@@ -85,6 +100,8 @@ services:
 volumes:
   study_hub_db_test:
   rabbitmq_data:
+  rag_data:
+  rag_chroma:
 
 
 networks:
