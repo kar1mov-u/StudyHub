@@ -1,0 +1,92 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: studyhub
+    ports:
+      - "5433:5432"             # 5433 to avoid conflict with local postgres
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d studyhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"           # management UI at localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  migrate:
+    build:
+      context: ./migrations
+    restart: on-failure
+    command: ["-path", "/migrations", "-database", "postgres://postgres:postgres@db:5432/studyhub?sslmode=disable", "up"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  rag-service:
+    build:
+      context: ./rag-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./rag-service/data:/app/data
+      - rag_chroma_dev:/app/chroma_db
+
+  backend:
+    build:
+      context: ./backend
+      target: development
+    restart: on-failure
+    command: go run ./cmd/
+    env_file: .env
+    environment:
+      DB_HOST: db
+      RBMQ_HOST: rabbitmq
+      RAG_SERVICE_URL: http://rag-service:8001
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      rag-service:
+        condition: service_started
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
+    env_file: .env
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data_dev:
+  rag_chroma_dev:
