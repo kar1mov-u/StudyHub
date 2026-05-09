@@ -1,64 +1,80 @@
 import os
+from typing import Optional
 
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-DATA_DIR = os.getenv("DATA_DIR", "data")
-DB_DIR = os.getenv("DB_DIR", "chroma_db")
+# ── Configuration ────────────────────────────────────────────────────────────
+# All values can be overridden via environment variables.
 
-# The system prompt tells the LLM who it is and what StudyHub is.
-# This text is injected at the top of every request so Gemini always
-# has context about the app even when no documents match the question.
-_SYSTEM = (
-    "You are a helpful assistant for StudyHub, an academic study management platform.\n\n"
-    "StudyHub lets students manage academic modules and study resources:\n"
-    "- Modules: Courses organised by department. Each has one or more runs.\n"
-    "- Module Runs: A module instance in a semester/year, containing weekly sessions.\n"
-    "- Weeks: Individual weeks within a run, each holding uploaded resources.\n"
-    "- Resources: Files (PDFs, docs) or external links uploaded to a week, stored in S3.\n"
-    "- Flashcard Decks: AI-generated flashcards from uploaded PDFs.\n"
-    "- Comments: Students comment on weekly resources and upvote/downvote others.\n"
-    "- User Profiles: View your own uploads and those of other students.\n"
-    "- Academic Terms: Admin-managed semester + year groups for module runs.\n\n"
-    "Navigation: Modules -> Module Detail -> Week Detail (resources, comments, flashcards).\n\n"
-    "Answer using the provided context when available. If the context does not help, draw on your "
-    "general knowledge of StudyHub's features. Be concise and helpful."
-)
+# Where Ollama is listening. On Mac/Windows with Docker use host.docker.internal;
+# locally (no Docker) use localhost.
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+# Local LLM for generating answers — lightweight 4-bit Gemma 4 (professor's spec).
+LLM_MODEL = os.getenv("LLM_MODEL", "gemma4:e4b")
+
+# Local embedding model — converts text to vectors for similarity search.
+EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v2-moe")
+
+DATA_DIR = os.getenv("DATA_DIR", "data")      # folder with PDF / TXT knowledge-base files
+DB_DIR   = os.getenv("DB_DIR",   "chroma_db") # where ChromaDB persists its vector index
+
+# Cosine-similarity threshold: a retrieved chunk scoring below this is considered
+# off-topic. Lower = more permissive; higher = stricter rejection.
+RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", "0.30"))
+
+# ── System prompt ─────────────────────────────────────────────────────────────
+# This is injected at the top of every LLM request. It tells the model its role
+# and — critically — instructs it to reject anything not about StudyHub.
+_SYSTEM = """You are StudyHub Assistant, the help-desk chatbot for the StudyHub application.
+
+StudyHub is an academic study management platform. Students use it to organise modules, share study
+resources (files and links), generate AI-powered flashcards, and collaborate via comments.
+
+YOUR RULES:
+1. You may answer questions about StudyHub — its features, APIs, authentication, architecture, and usage.
+2. You may also respond to greetings and answer simple meta-questions about yourself (who you are,
+   what you can help with, how to use the chatbot).
+3. Base every answer about StudyHub on the CONTEXT PROVIDED below. Do not invent facts.
+4. If the question is clearly unrelated to StudyHub (e.g. history, maths, other software, personal advice,
+   general trivia), respond with exactly: "I can only answer questions about StudyHub."
+5. Be friendly and concise. Use bullet points or numbered lists where helpful.
+
+"""
 
 
 class RAGChatbot:
-    def __init__(self, api_key: str):
-        # Embedding model: converts text into a list of numbers (a vector).
-        # Two pieces of text that mean similar things will produce vectors
-        # that are close together in space — that's how we do "semantic search"
-        # later instead of just keyword matching.
-        self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
-            google_api_key=api_key,
+    def __init__(self):
+        # Embedding model — turns text into a list of numbers so we can do
+        # semantic (meaning-based) similarity search instead of keyword matching.
+        self.embeddings = OllamaEmbeddings(
+            model=EMBED_MODEL,
+            base_url=OLLAMA_BASE_URL,
         )
 
-        # The LLM (large language model): this is the part that actually reads
-        # the retrieved context + the user's question and writes a human answer.
-        # temperature=0.2 keeps answers factual and consistent (0 = robotic, 1 = creative).
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash-lite",
-            google_api_key=api_key,
+        # LLM — reads the retrieved context + the user's question and writes an answer.
+        # temperature=0.2 keeps answers factual and deterministic (not creative/random).
+        self.llm = ChatOllama(
+            model=LLM_MODEL,
+            base_url=OLLAMA_BASE_URL,
             temperature=0.2,
         )
 
         self.vector_db = None
         self._init_db()
 
+    # ── Build-time helpers ────────────────────────────────────────────────────
+
     def _init_db(self):
-        # On startup: if we already ran /rebuild before, the chroma_db/ folder
-        # exists on disk — just open it. Otherwise build it fresh from data/.
+        """Load the existing ChromaDB index from disk, or build it fresh."""
+        # ChromaDB persists its vectors to chroma_db/ on disk.
+        # On startup we just open that folder — no re-embedding needed.
+        # Only on the very first run (or after /rebuild) is the index created.
         if os.path.exists(DB_DIR) and any(os.scandir(DB_DIR)):
-            # ChromaDB is a vector database that lives on the local filesystem.
-            # It stores every document chunk alongside its embedding vector so
-            # we can search them later by similarity.
             self.vector_db = Chroma(
                 persist_directory=DB_DIR,
                 embedding_function=self.embeddings,
@@ -67,13 +83,11 @@ class RAGChatbot:
             self.rebuild()
 
     def _load_documents(self):
-        # Read every PDF and .txt file from the data/ folder.
-        # LangChain's DirectoryLoader walks the folder recursively and hands
-        # back a list of Document objects, each with .page_content and .metadata
-        # (e.g. {"source": "data/lecture1.pdf", "page": 3}).
+        """Read every PDF and .txt file from the data/ knowledge-base folder."""
         os.makedirs(DATA_DIR, exist_ok=True)
         docs = []
-        for loader_cls, glob in [(PyPDFLoader, "**/*.pdf"), (TextLoader, "**/*.txt")]:
+        for loader_cls, glob in [(PyPDFLoader, "**/*.pdf"), (TextLoader, "**/*.txt"),
+                                  (TextLoader, "**/*.md")]:
             try:
                 loader = DirectoryLoader(
                     DATA_DIR,
@@ -87,8 +101,18 @@ class RAGChatbot:
         return docs
 
     def rebuild(self):
+        """
+        BUILD-TIME STEP — load docs → chunk → embed → store in ChromaDB.
+
+        This is the expensive step (calls the embedding model for every chunk).
+        It only needs to run once, or when new documents are added to data/.
+        The resulting index is saved to chroma_db/ and loaded cheaply on every
+        subsequent startup.
+        """
         docs = self._load_documents()
         if not docs:
+            # Create an empty DB so the service can still start and answer
+            # general StudyHub questions from the system prompt.
             self.vector_db = Chroma(
                 persist_directory=DB_DIR,
                 embedding_function=self.embeddings,
@@ -96,23 +120,18 @@ class RAGChatbot:
             return {
                 "status": "empty",
                 "chunks": 0,
-                "message": "No documents found. Drop PDFs or .txt files into data/ and call /rebuild.",
+                "message": "No documents found. Add .pdf / .txt / .md files to data/ and call /rebuild.",
             }
 
-        # Split each document into small overlapping chunks.
-        # We can't feed a 50-page PDF directly to the LLM — it's too long and
-        # most of it would be irrelevant to any given question.
-        # chunk_size=800 chars  → each chunk is roughly one paragraph
-        # chunk_overlap=150     → neighbouring chunks share 150 chars so a
-        #                         sentence that falls on a boundary isn't lost
+        # Split documents into small overlapping chunks.
+        # chunk_size=800: roughly one paragraph — focused enough for retrieval.
+        # chunk_overlap=150: neighbouring chunks share 150 chars so sentences
+        #                    that fall on a boundary are not lost.
         splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
         chunks = splitter.split_documents(docs)
 
-        # Embed every chunk and store it in ChromaDB.
-        # This is the slow one-time step: each chunk is sent to Gemini's
-        # embedding model, which returns a 768-number vector. Those vectors
-        # are saved to chroma_db/ on disk so we never have to redo this
-        # unless new documents are added.
+        # Embed every chunk with the local Ollama model and store in ChromaDB.
+        # Each chunk becomes a 768-dim (or model-specific) float vector on disk.
         self.vector_db = Chroma.from_documents(
             documents=chunks,
             embedding=self.embeddings,
@@ -125,50 +144,75 @@ class RAGChatbot:
             "message": f"Indexed {len(docs)} document(s) into {len(chunks)} chunks.",
         }
 
-    def chat(self, question: str):
-        context_section = ""
+    # ── Runtime: answer a question ────────────────────────────────────────────
+
+    def chat(self, question: str, history: Optional[list] = None):
+        """
+        RUNTIME STEP — embed question → vector search → LLM generation.
+
+        1. Embed the user's question with the same model used at build time.
+        2. Search ChromaDB for the 4 most similar chunks (by cosine similarity).
+        3. If no chunk is relevant enough, reject the question immediately.
+        4. Otherwise pass the chunks as context to the LLM and generate an answer.
+        5. Include recent conversation history so follow-up questions work.
+        """
+        
+        context_text = ""
         sources = []
 
         if self.vector_db is not None:
             try:
-                # Retriever: embeds the user's question into a vector,
-                # then searches ChromaDB for the 4 chunks whose vectors are
-                # most similar (cosine similarity). These are the parts of
-                # the documents most likely to contain the answer.
-                retriever = self.vector_db.as_retriever(search_kwargs={"k": 4})
-                relevant_docs = retriever.invoke(question)
+                # For follow-up questions ("what about the token?") the question alone is too
+                # vague for retrieval. Prepend the last user message to give context.
+                retrieval_query = question
+                if history:
+                    last_user = next((m["content"] for m in reversed(history) if m.get("role") == "user"), None)
+                    if last_user:
+                        retrieval_query = f"{last_user} {question}"
 
-                if relevant_docs:
-                    # Paste the raw text of those chunks together.
-                    # This becomes the "context" we hand to the LLM so it
-                    # answers from real document content, not from memory.
-                    context_section = "Relevant context from the knowledge base:\n" + "\n\n".join(
-                        d.page_content for d in relevant_docs
-                    )
-                    # Also record where each chunk came from so the frontend
-                    # can show "Sources: lecture1.pdf p.4" below the answer.
+                # similarity_search_with_relevance_scores returns (Document, score) pairs.
+                # Score is 0–1 where 1 = identical meaning. Below the threshold = off-topic.
+                results = self.vector_db.similarity_search_with_relevance_scores(retrieval_query, k=4)
+
+                relevant = [(doc, score) for doc, score in results if score >= RELEVANCE_THRESHOLD]
+
+                # If nothing relevant was found and the question is long enough to be a real
+                # factual question (not a greeting or meta-question), reject immediately.
+                # Short inputs like "hi", "who are you?", "what can you do?" fall through
+                # to the LLM which can handle them from the system prompt.
+                if not relevant and results and len(question.split()) > 4:
+                    return "I can only answer questions about StudyHub.", []
+
+                if relevant:
+                    context_text = "\n\n".join(doc.page_content for doc, _ in relevant)
                     sources = [
                         {
-                            "source": os.path.basename(d.metadata.get("source", "unknown")),
-                            "page": d.metadata.get("page"),
+                            "source": os.path.basename(doc.metadata.get("source", "unknown")),
+                            "page": doc.metadata.get("page"),
                         }
-                        for d in relevant_docs
+                        for doc, _ in relevant
                     ]
             except Exception:
                 pass
 
-        # Build the final prompt that gets sent to Gemini:
-        #   1. System instructions (who the bot is)
-        #   2. Retrieved document chunks (the "retrieved" part of RAG)
-        #   3. The user's question
-        # Gemini reads all three and writes a grounded answer.
-        template = "{system}\n\n{context_section}\n\nUser: {question}\n\nAssistant:"
-        prompt = ChatPromptTemplate.from_template(template)
+        # Build the prompt as a list of LangChain messages so multi-turn
+        # conversation history is preserved correctly.
+        system_content = _SYSTEM
+        if context_text:
+            system_content += f"CONTEXT:\n{context_text}\n"
 
-        # The | operator chains the prompt and the LLM together into a pipeline.
-        # prompt.invoke(...) formats the template, then passes the result to llm.invoke(...).
-        chain = prompt | self.llm
-        response = chain.invoke(
-            {"system": _SYSTEM, "context_section": context_section, "question": question}
-        )
+        messages = [SystemMessage(content=system_content)]
+
+        # Inject the last 6 messages (= 3 user + 3 assistant exchanges) so the
+        # LLM understands follow-up questions like "tell me more about that".
+        if history:
+            for msg in history[-6:]:
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg["content"]))
+                elif msg.get("role") == "assistant":
+                    messages.append(AIMessage(content=msg["content"]))
+
+        messages.append(HumanMessage(content=question))
+
+        response = self.llm.invoke(messages)
         return response.content, sources

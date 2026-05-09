@@ -36,7 +36,10 @@ const ChatWidget: React.FC = () => {
     setLoading(true)
 
     try {
-      const { reply, sources } = await chatApi.sendMessage(text)
+      // Send the full conversation history so the RAG service can handle follow-up questions (FR-06)
+      const currentMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant')
+      const history = currentMessages.map(m => ({ role: m.role, content: m.content }))
+      const { reply, sources } = await chatApi.sendMessage(text, history)
       setMessages(prev => [...prev, { role: 'assistant', content: reply, sources }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])

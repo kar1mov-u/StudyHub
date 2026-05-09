@@ -1,6 +1,6 @@
 # StudyHub
 
-A full-stack web application for managing academic modules, sharing study resources, and generating AI-powered flashcards. Students can upload files and links organized by modules, weeks, and academic terms -- and the system automatically generates flashcards from uploaded documents using Google Gemini AI.
+A full-stack web application for managing academic modules, sharing study resources, and generating AI-powered flashcards. Students can upload files and links organized by modules, weeks, and academic terms -- and the system automatically generates flashcards from uploaded documents using Google Gemini AI. It also includes a RAG-based chatbot assistant that answers questions about the application using local Ollama models.
 
 ## Features
 
@@ -8,6 +8,7 @@ A full-stack web application for managing academic modules, sharing study resour
 - **Resource Sharing** -- Upload files (stored in AWS S3 with deduplication) or share links, organized by week
 - **AI Flashcard Generation** -- Uploaded documents are automatically processed by Google Gemini to generate study flashcards
 - **Interactive Study Mode** -- Flip-card UI with keyboard navigation for reviewing generated flashcards
+- **RAG Chatbot** -- Context-aware help-desk assistant powered by local Ollama models (gemma4:e4b + nomic-embed-text-v2-moe), rejects off-topic questions
 - **User Profiles** -- View resources uploaded by any user with full module context
 - **Academic Terms** -- Manage semesters and track the active term
 - **Admin Dashboard** -- Overview stats, module/run management for administrators
@@ -20,7 +21,9 @@ A full-stack web application for managing academic modules, sharing study resour
 | **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui |
 | **Backend** | Go, Chi router, PostgreSQL, pgx |
 | **Storage** | AWS S3 (file storage with presigned URLs) |
-| **AI** | Google Gemini 2.5 Flash (flashcard generation) |
+| **AI (flashcards)** | Google Gemini 2.5 Flash |
+| **AI (chatbot)** | Ollama — gemma4:e4b (LLM) + nomic-embed-text-v2-moe (embeddings) |
+| **RAG** | Python, FastAPI, LangChain, ChromaDB |
 | **Queue** | RabbitMQ (async document processing) |
 | **Doc Conversion** | Gotenberg (file-to-PDF conversion) |
 | **Containerization** | Docker, Docker Compose |
@@ -38,19 +41,19 @@ A full-stack web application for managing academic modules, sharing study resour
                     +-----+-----+
                     |  Backend  |  Go API (Chi)
                     +-----+-----+
-                       /  |  \
-                      /   |   \
-              +------+ +--+--+ +----------+
-              | PostgreSQL   | |  AWS S3   |
-              +--------------+ +----------+
-                      |
-                 +----+----+
-                 | RabbitMQ |
-                 +----+----+
-                      |
-               +------+-------+
-               | Worker Pool  |  (5 goroutines)
-               +------+-------+
+                       /  |  \  \
+                      /   |   \  \________________
+              +------+ +--+--+ +----------+       \
+              | PostgreSQL   | |  AWS S3   |  +----+-------+
+              +--------------+ +----------+  | RAG Service |
+                      |                      | Python/FAST |
+                 +----+----+                 +----+--------+
+                 | RabbitMQ |                     |
+                 +----+----+              +-------+-------+
+                      |                  |               |
+               +------+-------+    +----------+   +--------+
+               | Worker Pool  |    | ChromaDB |   | Ollama |
+               +------+-------+    +----------+   +--------+
                   /         \
           +------+---+ +----+------+
           | Gotenberg | |  Gemini   |
@@ -58,7 +61,9 @@ A full-stack web application for managing academic modules, sharing study resour
           +----------+ +-----------+
 ```
 
-**Flow:** File upload -> S3 storage -> RabbitMQ message -> Worker converts to PDF (via Gotenberg if needed) -> Gemini generates flashcards -> Stored in DB.
+**Flashcard flow:** File upload → S3 storage → RabbitMQ message → Worker converts to PDF (via Gotenberg if needed) → Gemini generates flashcards → Stored in DB.
+
+**Chatbot flow:** User question → Go backend → RAG service → ChromaDB similarity search → Ollama (gemma4:e4b) → grounded answer + sources.
 
 ## Project Structure
 
@@ -84,8 +89,17 @@ StudyHub/
 │       ├── api/                     # API client layer (Axios)
 │       ├── context/                 # Auth context (React Context)
 │       └── types/                   # TypeScript type definitions
+├── rag-service/
+│   ├── main.py                      # FastAPI app — /health, /chat, /rebuild
+│   ├── rag.py                       # RAGChatbot — ingestion, retrieval, generation
+│   ├── build_index.py               # Build-time indexing script
+│   ├── requirements.txt             # Python dependencies
+│   ├── Dockerfile
+│   └── data/
+│       └── studyhub_docs.md         # Knowledge base
 ├── migrations/                      # PostgreSQL migration files
 ├── docs/                            # API documentation
+├── RAG_CHATBOT_DOCS.md              # RAG chatbot technical documentation
 ├── compose.yaml                     # Docker Compose (production)
 └── compose.dev.yaml                 # Docker Compose (development)
 ```
@@ -97,6 +111,26 @@ StudyHub/
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
 - AWS account with an S3 bucket
 - [Google Gemini API key](https://ai.google.dev/)
+- [Ollama](https://ollama.com) installed and running (for the chatbot)
+
+### Chatbot Setup (Ollama models)
+
+The RAG chatbot requires two local models. Pull them once before starting the application:
+
+```bash
+ollama pull nomic-embed-text-v2-moe   # embedding model (~957 MB)
+ollama pull gemma4:e4b                 # LLM (~3 GB)
+```
+
+Ollama must be running on your machine (`ollama serve`) before starting the Docker containers. The RAG service connects to it via `host.docker.internal:11434`.
+
+On first container start the chatbot will automatically index `rag-service/data/studyhub_docs.md` into ChromaDB. Subsequent starts load the index from disk and are fast.
+
+To add new documents to the knowledge base, drop `.pdf`, `.txt`, or `.md` files into `rag-service/data/` and call:
+
+```bash
+curl -X POST http://localhost:8001/rebuild
+```
 
 ### Environment Variables
 
@@ -127,6 +161,10 @@ RBMQ_HOST=rabbitmq
 
 # Google Gemini AI
 GEMINI_API_KEY=your-gemini-api-key
+
+# RAG Chatbot
+RAG_SERVICE_URL=http://rag-service:8001
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
 ### Run with Docker (Production)
@@ -135,7 +173,7 @@ GEMINI_API_KEY=your-gemini-api-key
 docker compose up --build
 ```
 
-This starts all 6 services: frontend (port 80), backend (port 8080), PostgreSQL, RabbitMQ, Gotenberg, and runs database migrations automatically.
+This starts all 7 services: frontend (port 80), backend (port 8080), RAG service (port 8001), PostgreSQL, RabbitMQ, Gotenberg, and runs database migrations automatically.
 
 ### Run with Docker (Development)
 

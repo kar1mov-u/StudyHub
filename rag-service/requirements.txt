@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-langchain-google-genai
+langchain-ollama
 langchain-chroma
 langchain-community
 langchain-text-splitters
