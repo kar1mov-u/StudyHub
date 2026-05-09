@@ -42,6 +42,8 @@ services:
       context: ./rag-service
     restart: unless-stopped
     env_file: .env
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
     volumes:
       - rag_data:/app/data
       - rag_chroma:/app/chroma_db

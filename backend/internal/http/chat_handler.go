@@ -10,8 +10,14 @@ import (
 	"time"
 )
 
+type chatHistoryMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 type chatRequest struct {
-	Message string `json:"message"`
+	Message string               `json:"message"`
+	History []chatHistoryMessage `json:"history"`
 }
 
 type chatSource struct {
@@ -29,7 +35,8 @@ type ragChatResponse struct {
 	Sources []chatSource `json:"sources"`
 }
 
-var ragHTTPClient = &http.Client{Timeout: 30 * time.Second}
+// 60 s — local Ollama can be slow on first inference
+var ragHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
 func (srv *HTTPServer) ChatHandler(w http.ResponseWriter, r *http.Request) {
 	var req chatRequest
@@ -42,8 +49,10 @@ func (srv *HTTPServer) ChatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try the local RAG service (Ollama-powered, context-aware, with history).
+	// Falls back to direct Gemini if the RAG service is unavailable.
 	if srv.ragServiceURL != "" {
-		if reply, sources, err := callRAGService(srv.ragServiceURL, req.Message); err == nil {
+		if reply, sources, err := callRAGService(srv.ragServiceURL, req.Message, req.History); err == nil {
 			ResponseWithJSON(w, http.StatusOK, chatResponse{Reply: reply, Sources: sources})
 			return
 		} else {
@@ -60,8 +69,12 @@ func (srv *HTTPServer) ChatHandler(w http.ResponseWriter, r *http.Request) {
 	ResponseWithJSON(w, http.StatusOK, chatResponse{Reply: reply})
 }
 
-func callRAGService(baseURL, message string) (string, []chatSource, error) {
-	body, err := json.Marshal(map[string]string{"message": message})
+func callRAGService(baseURL, message string, history []chatHistoryMessage) (string, []chatSource, error) {
+	payload := map[string]any{
+		"message": message,
+		"history": history,
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", nil, err
 	}
