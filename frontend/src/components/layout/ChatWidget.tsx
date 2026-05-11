@@ -17,7 +17,7 @@ const ChatWidget: React.FC = () => {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -32,6 +32,7 @@ const ChatWidget: React.FC = () => {
     if (!text || loading) return
 
     setInput('')
+    if (inputRef.current) inputRef.current.style.height = 'auto'
     setMessages(prev => [...prev, { role: 'user', content: text }])
     setLoading(true)
 
@@ -48,11 +49,18 @@ const ChatWidget: React.FC = () => {
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       send()
     }
+  }
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    const el = e.target
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
   }
 
   return (
@@ -124,21 +132,22 @@ const ChatWidget: React.FC = () => {
           </div>
 
           {/* Input */}
-          <div className="px-3 py-2 border-t border-gray-100 flex items-center gap-2">
-            <input
+          <div className="px-3 py-2 border-t border-gray-100 flex items-end gap-2">
+            <textarea
               ref={inputRef}
-              type="text"
+              rows={1}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question..."
+              placeholder="Ask a question... (Shift+Enter for new line)"
               disabled={loading}
-              className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400 disabled:opacity-50"
+              className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400 disabled:opacity-50 resize-none leading-relaxed overflow-y-auto"
+              style={{ maxHeight: '120px' }}
             />
             <button
               onClick={send}
               disabled={!input.trim() || loading}
-              className="p-1.5 rounded-full bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-80 transition-opacity"
+              className="p-1.5 rounded-full bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-80 transition-opacity flex-shrink-0 mb-0.5"
             >
               <Send className="h-3.5 w-3.5" />
             </button>
