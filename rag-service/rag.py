@@ -35,16 +35,34 @@ _SYSTEM = """You are StudyHub Assistant, the help-desk chatbot for the StudyHub 
 StudyHub is an academic study management platform. Students use it to organise modules, share study
 resources (files and links), generate AI-powered flashcards, and collaborate via comments.
 
+Here is what users can do in StudyHub:
+- Browse and join Modules (courses) organised by department
+- Each module has one or more Runs (a specific semester and year instance)
+- Each Run has weekly sessions — Weeks — that hold uploaded files, links, and comments
+- Upload files (PDFs, Word docs, PowerPoints) or add external links to any week
+- AI flashcard decks are automatically generated from uploaded PDFs in the background
+- Comment on weekly resources and upvote or downvote others' comments
+- View user profiles to see all resources a student has uploaded with full module context
+- Navigate: Modules → Module Detail → Week Detail → Resources / Comments / Flashcards
+
 YOUR RULES:
-1. You may answer questions about StudyHub — its features, APIs, authentication, architecture, and usage.
-2. You may also respond to greetings and answer simple meta-questions about yourself (who you are,
-   what you can help with, how to use the chatbot).
-3. Base every answer about StudyHub on the CONTEXT PROVIDED below. Do not invent facts.
-4. If the question is clearly unrelated to StudyHub (e.g. history, maths, other software, personal advice,
-   general trivia), respond with exactly: "I can only answer questions about StudyHub."
-5. Be friendly and concise. Use bullet points or numbered lists where helpful.
+1. Answer questions about StudyHub — its features, APIs, authentication, architecture, and usage.
+2. Respond to greetings and meta-questions (who you are, what you can help with, what the app does).
+3. Use the CONTEXT PROVIDED below when it is relevant. For general platform questions, answer from
+   the feature knowledge above even if no context was retrieved.
+4. Only refuse if the question is clearly unrelated to StudyHub or academic study tools
+   (e.g. sports results, geography, politics, recipes). Say exactly: "I can only answer questions about StudyHub."
+5. Be friendly and concise. Use bullet points where helpful.
 
 """
+
+# Questions about the platform itself bypass the score gate — they go straight to the LLM
+# which can answer them from the system prompt above.
+_PLATFORM_SIGNALS = {
+    "app", "platform", "studyhub", "what can", "can you", "who are you",
+    "what do you", "what does", "how do i", "how does", "feature", "help me",
+    "introduce", "tell me about", "explain",
+}
 
 
 class RAGChatbot:
@@ -176,11 +194,12 @@ class RAGChatbot:
 
                 relevant = [(doc, score) for doc, score in results if score >= RELEVANCE_THRESHOLD]
 
-                # If nothing relevant was found and the question is long enough to be a real
-                # factual question (not a greeting or meta-question), reject immediately.
-                # Short inputs like "hi", "who are you?", "what can you do?" fall through
-                # to the LLM which can handle them from the system prompt.
-                if not relevant and results and len(question.split()) > 4:
+                # Reject only if: nothing relevant found AND it is a substantive question
+                # AND it doesn't look like a general question about the platform itself.
+                # Short questions and platform-related questions go through to the LLM.
+                q_lower = question.lower()
+                is_platform_question = any(signal in q_lower for signal in _PLATFORM_SIGNALS)
+                if not relevant and results and len(question.split()) > 4 and not is_platform_question:
                     return "I can only answer questions about StudyHub.", []
 
                 if relevant:
@@ -214,5 +233,8 @@ class RAGChatbot:
 
         messages.append(HumanMessage(content=question))
 
-        response = self.llm.invoke(messages)
-        return response.content, sources
+        try:
+            response = self.llm.invoke(messages)
+            return response.content, sources
+        except Exception:
+            return "Sorry, I couldn't reach the AI model right now. Please try again in a moment.", []
