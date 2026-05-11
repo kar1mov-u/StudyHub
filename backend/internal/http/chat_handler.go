@@ -83,7 +83,7 @@ func callRAGService(baseURL, message string, history []chatHistoryMessage) (stri
 	if err != nil {
 		return "", nil, fmt.Errorf("rag service unreachable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("rag service returned status %d", resp.StatusCode)
