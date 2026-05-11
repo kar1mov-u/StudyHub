@@ -1,20 +1,8 @@
 # this is compose file for the prod
 services:
-  rag-service:
-    image: ghcr.io/kar1mov-u/studyhub-rag-service:latest
-    restart: unless-stopped
-    env_file:
-      - .env
-    networks:
-      - studyhub_net
-    volumes:
-      - rag_data:/app/data
-      - rag_chroma:/app/chroma_db
-
   backend:
-    build: backend/
-    # image: ghcr.io/kar1mov-u/study_hub_backend:latest
-
+    image: ghcr.io/kar1mov-u/studyhub-backend:latest
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -22,22 +10,18 @@ services:
         condition: service_started
       rabbitmq:
         condition: service_started
-      rag-service:
-        condition: service_started
     networks:
       - studyhub_net
     env_file:
       - .env
-    environment:
-      RAG_SERVICE_URL: http://rag-service:8001
     ports:
       - "8080:8080"
-  frontend:
-    build: frontend/
-    # image: ghcr.io/kar1mov-u/study_hub_front_end:latest
 
+  frontend:
+    image: ghcr.io/kar1mov-u/studyhub-frontend:latest
+    restart: unless-stopped
     ports:
-      - "80:80" 
+      - "80:80"
     networks:
       - studyhub_net
     depends_on:
@@ -46,15 +30,16 @@ services:
 
   db:
     image: postgres:latest
-    env_file:
-      - .env
-
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-      
     ports:
       - "5432:5432"
     networks:
@@ -62,32 +47,30 @@ services:
     volumes:
       - study_hub_db_test:/var/lib/postgresql
 
-
   migrate:
-    build: ./migrations 
-    # image: ghcr.io/kar1mov-u/study_hub-migrate:latest
+    image: ghcr.io/kar1mov-u/studyhub-migrations:latest
     networks:
       - studyhub_net
     depends_on:
       db:
         condition: service_healthy
     command:
-       - -path=/migrations/
-       - -database=postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}?sslmode=disable
-       - up
+      - -path=/migrations/
+      - -database=postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}?sslmode=disable
+      - up
 
-
-
-    
   gotenberg:
-      image: gotenberg/gotenberg:8
-      networks:
-        - studyhub_net
-      ports:
-        - "3000:3000"
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    networks:
+      - studyhub_net
+    ports:
+      - "3000:3000"
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
+    restart: unless-stopped
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -96,13 +79,9 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/mnesia
 
-
 volumes:
   study_hub_db_test:
   rabbitmq_data:
-  rag_data:
-  rag_chroma:
-
 
 networks:
   studyhub_net:
